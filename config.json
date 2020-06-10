@@ -1,9 +1,9 @@
 {
-	"name": "ClassNameHere",
+	"name": "CA Facts Project EM",
 
-	"namespace": "Stanford\\ClassNameHere",
+	"namespace": "Stanford\\ProjCaFactos",
 
-	"description": "A template for a REDCap External Module",
+	"description": "An em to help manage CA FACTS project and interaction with GAUSS",
 
 	"documentation": "README.md",
 
@@ -12,16 +12,19 @@
 			"name": "Andrew Martin",
 			"email": "andy123@stanford.edu",
 			"institution": "Stanford University"
+		},
+        {
+			"name": "Irvin Szeto",
+			"email": "irvins@stanford.edu",
+			"institution": "Stanford University"
 		}
+
 	],
 
 	"permissions": [
-		"redcap_module_system_enable",
-		"redcap_module_project_enable",
-		"redcap_module_save_configuration"
 	],
-	
-	"enable-every-page-hooks-on-system-pages": false,	
+
+	"enable-every-page-hooks-on-system-pages": false,
 
 	"links": {
 		"project": [
@@ -33,10 +36,47 @@
 	},
 
 	"no-auth-pages": [
+        "pages/ivr"
 
 	],
 
 	"project-settings": [
+        {
+			"key": "em-mode",
+			"name": "<b>EM Mode</b><br>This EM is used in more than one project with different functionality.  Please indicate which project this is?",
+			"required": true,
+			"type": "radio",
+            "choices":[
+                {
+                  "name" : "ACCESS CODE DB (not used)",
+                  "value" : "access_code_db"
+                },
+                {
+                  "name" : "KIT ORDER (MAIN)",
+                  "value" : "kit_order"
+                },
+                {
+                  "name" : "KIT SUBMISSION",
+                  "value" : "kit_submission"
+                }
+            ]
+        },
+		{
+			"key": "access-code-pid",
+			"name": "<b>PID for Access Code Project</b><br>Required for Kit Order Mode",
+			"required": false,
+			"type": "project-list"
+		},
+        {
+			"key": "kit-order-pid",
+			"name": "<b>PID for Kit Order Project</b><br>Required for Kit Submission Mode",
+			"required": false,
+			"type": "project-list"
+		}
+
+
+
+
 		{
 			"key": "enable-project-debug-logging",
 			"name": "<b>Enable Debug Logging</b><br><i>(optional)</i> Requires installation and configuration of emLogger",
