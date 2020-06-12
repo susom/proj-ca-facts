@@ -57,7 +57,7 @@
 			"type": "radio",
             "choices":[
                 {
-                  "name" : "ACCESS CODE DB (not used)",
+                  "name" : "ACCESS CODE DB",
                   "value" : "access_code_db"
                 },
                 {
@@ -70,22 +70,6 @@
                 }
             ]
         },
-		{
-			"key": "access-code-pid",
-			"name": "<b>PID for Access Code Project</b><br>Required for Kit Order Mode",
-			"required": false,
-			"type": "project-list"
-		},
-        {
-			"key": "kit-order-pid",
-			"name": "<b>PID for Kit Order Project</b><br>Required for Kit Submission Mode",
-			"required": false,
-			"type": "project-list"
-		},
-
-
-
-
 		{
 			"key": "enable-project-debug-logging",
 			"name": "<b>Enable Debug Logging</b><br><i>(optional)</i> Requires installation and configuration of emLogger",

@@ -29,7 +29,13 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
     const FIELD_DEP2_RECORD_ID      = 'dep_2_record_id';
     const FIELD_DEP2_PARTICIPANT_ID = 'dep_2_participant_id';
 
-    private $access_code, $zip_code, $enabledProjects;
+    private   $access_code
+            , $zip_code
+            , $enabledProjects
+            , $access_code_record
+            , $access_code_project
+            , $kit_submission_record
+            , $kit_submission_project;
 
     // This em is enabled on more than one project so you set the mode depending on the project
     static $MODE;  // access_code_db, kit_order, kit_submission
@@ -107,31 +113,20 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
 
     public function formHandler() {
 
-        // Make sure user is valid and set project info
+        // GET ALL tagged projects with this EM 
         $this->getEnabledProjects();
-        if (! $this->getCurrentProject())   $this->returnError("Unable to find an active project for participant: " . $this->participant_id);
+
+        // MAKE SURE THERE IS A PROJECT CONTAINING THE ACCESS CODES 
+        if (!$this->getAccessCodeProject())   $this->returnError("Unable to find an active project holding access codes");
 
         //TODO WHAT ACTIONS GO HERE?  REDIRECT TO RC SURVEY?
-        //WHAT TO SHOW BACK FOR NOW? THE ENTIRE POST?
-        $result = $_POST;
-        
-        switch($this->action) {
-            case "VERIFY":
-                REDCap::logEvent($this->PREFIX, $this->action, NULL, $this->participant_id, NULL, $this->current_project);
-                $result = $this->current_record;
-                break;
-            case "SAVEDATA":
-                if (is_null($this->data)) $this->returnError("Missing data for" . $this->participant_id);
-                $this->data['id']                       = $this->participant_id;
-                $this->data['redcap_repeat_instrument'] = 'session_data';
-                $this->data['redcap_repeat_instance']   = $this->getNextInstanceId();
 
-                $this->emDebug("SaveData", $this->data);
-                $result = REDCap::saveData($this->current_project, 'json', json_encode(array($this->data)));
-                break;
-            default:
-                $result = array("error"=>"Unknown action: " . $this->action);
-        }
+        //AT THIS POINT WE HAVE THE ACCESS CODE RECORD, 
+        //WHAT DO I DO WITH IT? 
+        $result = $access_code_record;
+
+        //FOR NOW? JUST RETURN THE ENTIRE POST FOR NOW?
+        $result = $_POST;
 
         // Return result
         header("Content-type: application/json");
@@ -162,30 +157,59 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
         echo json_encode($result);
     }
 
+    /**
+     * Finds the currentProject for the user and passcode
+     * @return bool
+     */
+    public function getAccessCodeProject() {
+        foreach ($this->enabledProjects as $pid => $project_data) {
+            // TODO NEED TO CHECK WHICH MODE IS PROJECT 
+            // Look FOR ACCESS CODE
+            $project_mode   = $this->getProjectSetting('em-mode', $pid);
+            if($project_mode == "access_code_db"){
+                $filter     = "[access_code] = '" . $this->acess_code . "' AND [zip] = '". $this->zip_code ."'";
+                $q          = \REDCap::getData($pid, 'json', null , null, null, null, false, false, false, $filter);
+                $results    = json_decode($q,true);
+                foreach ($results as $result) {
+                    if ($result['access_code'] == $this->access_code && $result['zip'] == $this->zip_code) {
+                        $this->emDebug("Found a match access code match for ", $this->access_code, $this->zip_code);
+                        $this->access_code_record   = $result;
+                        $this->access_code_project  = $pid;
+                        return true;
+                    }
+                }
+            }
+        }
+
+        $this->emDebug("No match found for in Access Code DB for : ", $this->access_code, $this->zip_code);
+        return false;
+    }
 
     /**
      * Finds the currentProject for the user and passcode
      * @return bool
      */
-    public function getCurrentProject() {
+    public function getKitSubmissionProject() {
         foreach ($this->enabledProjects as $pid => $project_data) {
-
-            $this->emDebug("enabled pid ", $pid);
-            $this->emDebug("enabled project_data ", $project_data);
-
-            $q = \REDCap::getData($pid, 'json', $this->participant_id, array('id','pw','alias','deactivate'));
-            $results = json_decode($q,true);
-            $this->emLog("Query for " . $this->participant_id . " in project " . $pid, $results);
-            foreach ($results as $result) {
-                if ($result['id'] == $this->participant_id && $result['pw'] == $this->passcode) {
-                    $this->emDebug("Found a match", $this->participant_id, $this->passcode);
-                    $this->current_record = $result;
-                    $this->current_project = $pid;
-                    return true;
+            // TODO NEED TO CHECK WHICH MODE IS PROJECT 
+            // Look FOR kit_submission
+            $project_mode   = $this->getProjectSetting('em-mode', $pid);
+            if($project_mode == "kit_submission"){
+                $filter     = "[access_code] = '" . $this->acess_code . "' AND [zip] = '". $this->zip_code ."'";
+                $q          = \REDCap::getData($pid, 'json', null , null, null, null, false, false, false, $filter);
+                $results    = json_decode($q,true);
+                foreach ($results as $result) {
+                    if ($result['access_code'] == $this->access_code && $result['zip'] == $this->zip_code) {
+                        $this->emDebug("Found a match access code match for ", $this->access_code, $this->zip_code);
+                        $this->kit_submission_record   = $result;
+                        $this->kit_submission_project  = $pid;
+                        return true;
+                    }
                 }
-                $this->emDebug("Got a record, but didn't match", $this->participant_id, $this->passcode, $result);
             }
         }
+
+        $this->emDebug("No match found for in Access Code DB for : ", $this->access_code, $this->zip_code);
         return false;
     }
 

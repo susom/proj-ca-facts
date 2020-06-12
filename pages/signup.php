@@ -4,8 +4,6 @@ namespace Stanford\ProjCaFacts;
 
 
 $module->emLog($_REQUEST, "Incoming Request - Form Post expecting Access Code + Zip Code");
-
-
 if (!$module->parseFormInput()) {
     $module->returnError("Invalid Request Parameters - check your syntax");
 }
