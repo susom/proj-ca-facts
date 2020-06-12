@@ -1,7 +1,7 @@
 {
 	"name": "CA Facts Project EM",
 
-	"namespace": "Stanford\\ProjCaFactos",
+	"namespace": "Stanford\\ProjCaFacts",
 
 	"description": "An em to help manage CA FACTS project and interaction with GAUSS",
 
@@ -28,15 +28,24 @@
 
 	"links": {
 		"project": [
-
+			{
+	        "name": "CA-FACTS Invitation API Instructions",
+	        "icon": "gear",
+	        "url": "pages/instructions.php"
+	      }
 		],
 		"control-center": [
-
-		]
+	      {
+	        "name": "CA-FACTS Invitation Endpoint Config",
+	        "icon": "gear",
+	        "url": "pages/app_config.php"
+	      }
+	    ]
 	},
 
 	"no-auth-pages": [
-        "pages/ivr"
+        "pages/ivr",
+        "pages/signup"
 
 	],
 
@@ -72,7 +81,7 @@
 			"name": "<b>PID for Kit Order Project</b><br>Required for Kit Submission Mode",
 			"required": false,
 			"type": "project-list"
-		}
+		},
 
 
 

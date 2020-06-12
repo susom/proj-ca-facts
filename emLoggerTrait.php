@@ -1,5 +1,5 @@
 <?php
-namespace Stanford\ProjCaFactos;
+namespace Stanford\ProjCaFacts;
 /** @var ProjCaFacts $this */
 
 trait emLoggerTrait

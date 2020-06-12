@@ -1,4 +1,18 @@
 <?php
+namespace Stanford\ProjCaFacts;
+/** @var \Stanford\ProjCaFacts\ProjCaFacts $module */
+
+
+$module->emLog($_REQUEST, "Incoming Request - IVR");
+
+
+if (! $module->parseIVRInput()) {
+    $module->returnError("Invalid Request Parameters - check your syntax");
+}
+
+// Response is handled by $module
+$module->IVRHandler();
+
 
 // This is the IVR endpoint for Twilio
 
