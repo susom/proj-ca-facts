@@ -5,11 +5,18 @@ namespace Stanford\ProjCaFacts;
 require_once APP_PATH_DOCROOT . 'ProjectGeneral/header.php';
 
 $XML_AC_PROJECT_TEMPLATE = $module->getUrl("docs/CAFACTSACCESSDBTEST_2020-06-10_1338.REDCap.xml");
-$XML_KO_PROJECT_TEMPLATE = $module->getUrl("docs/CAFACTSACCESSDBTEST_2020-06-10_1338.REDCap.xml");
-$XML_KS_PROJECT_TEMPLATE = $module->getUrl("docs/CAFACTSACCESSDBTEST_2020-06-10_1338.REDCap.xml");
+$XML_KO_PROJECT_TEMPLATE = $module->getUrl("docs/CAFACTSMAINPROJECTKi_2020-06-23_1523.REDCap.xml");
+$XML_KS_PROJECT_TEMPLATE = $module->getUrl("docs/CAFACTSKITSUBMISSION_2020-06-23_1523.REDCap.xml");
 ?>
 
-<h4>Download CA-FACTS Project XML Templates:</h4>
+<h4>CA-FACTS EM Requirements</h4>
+<p>This project requires 3 REDCap projects be created with the below REDCap XML Definitions</p>
+<p>Once created, all three projects must have the CA Facts Project EM installed and configured to be identified as<br> <b>[ACCESS CODE DB], [KIT ORDER (MAIN)], and [KIT SUBMISSION]</b> respectively</p>
+
+<br>
+<br>
+
+<h5>Download CA-FACTS Project XML Templates:</h5>
 <ul>
 <li><?php echo "<a href='$XML_AC_PROJECT_TEMPLATE'>CA-FACTS Access Code XML project template</a>" ?></li>
 <li><?php echo "<a href='$XML_KO_PROJECT_TEMPLATE'>CA-FACTS Kit Order XML project template</a>" ?></li>
