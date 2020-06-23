@@ -44,7 +44,7 @@
 	},
 
 	"no-auth-pages": [
-        "pages/ivr",
+        "pages/signup-ivr",
         "pages/signup"
 
 	],

@@ -100,6 +100,7 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
     public function parseFormInput() {
         $this->emDebug("Incoming POST AC + Zip: ", $_POST);
         
+        // TODO add filter VAR
         $this->access_code   = isset($_POST[self::FIELD_ACCESS_CODE]) ? strtoupper(trim($_POST[self::FIELD_ACCESS_CODE])) : NULL ;
         $this->zip_code      = isset($_POST[self::FIELD_ZIP])         ? trim($_POST[self::FIELD_ZIP]) : NULL ;
         
@@ -124,6 +125,14 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
         //AT THIS POINT WE HAVE THE ACCESS CODE RECORD, 
         //WHAT DO I DO WITH IT? 
         $result = $access_code_record;
+        // or get the PUBLIC SURVEY URL and redirect there?
+        // need to do some linking from kit_submission?
+        // so after survey complete hook?
+
+        //0.  GET NEXT AVAIL ID
+        //1.  CREATE NEW RECORD
+        //2.  POPULATE those 2 fields
+        //3.  REDIRECT TO THAT SURVEY URL
 
         //FOR NOW? JUST RETURN THE ENTIRE POST FOR NOW?
         $result = $_POST;
