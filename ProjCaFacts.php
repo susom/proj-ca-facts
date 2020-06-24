@@ -32,6 +32,8 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
     private   $access_code
             , $zip_code
             , $enabledProjects
+            , $main_project_record
+            , $main_project
             , $access_code_record
             , $access_code_project
             , $kit_submission_record
@@ -104,8 +106,6 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
         $this->access_code   = isset($_POST[self::FIELD_ACCESS_CODE]) ? strtoupper(trim($_POST[self::FIELD_ACCESS_CODE])) : NULL ;
         $this->zip_code      = isset($_POST[self::FIELD_ZIP])         ? trim($_POST[self::FIELD_ZIP]) : NULL ;
         
-        //TODO any other data?
-
         $valid               = (is_null($this->access_code) || is_null($this->zip_code)) ? false : true;
         $this->emDebug($valid);
 
@@ -113,33 +113,39 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
     }
 
     public function formHandler() {
+        // GET ALL projects with this EM installed
+        $this->getAllSupportProjects();
 
-        // GET ALL tagged projects with this EM 
-        $this->getEnabledProjects();
+        // Match INCOMING AccessCode Attempt and Verify ZipCode , find the record in the AC DB 
+        if (!$this->getTertProjectData("access_code_db")){
+            $this->returnError("Error, no matching AC/ZIP combination found");
+        }
+        
+        //AT THIS POINT WE HAVE THE ACCESS CODE RECORD, IT HASNT BEEN ABUSED, IT HASNT YET BEEN CLAIMED
+        //0.  GET NEXT AVAIL ID IN MAIN PROJECT
+        $next_id = $this->getNextAvailableRecordId($this->main_project);
 
-        // MAKE SURE THERE IS A PROJECT CONTAINING THE ACCESS CODES 
-        if (!$this->getAccessCodeProject())   $this->returnError("Unable to find an active project holding access codes");
+        //1.  CREATE NEW RECORD, POPULATE these 2 fields
+        $data = array(
+            "record_id" => $next_id,
+            "code"      => $this->access_code
+        );
+        $r    = \REDCap::saveData($this->main_project, 'json', json_encode(array($data)) );
 
-        //TODO WHAT ACTIONS GO HERE?  REDIRECT TO RC SURVEY?
+        //2.  UPDATE AC DB record with time stamp and "claimed" main record project
+        $data = array(
+            "record_id"             => $this->access_code_record,
+            "participant_used_id"   => $next_id,
+            "participant_used_date" => date("Y-m-d H:i:s")
+        );
+        $r    = \REDCap::saveData($this->access_code_project, 'json', json_encode(array($data)) );
 
-        //AT THIS POINT WE HAVE THE ACCESS CODE RECORD, 
-        //WHAT DO I DO WITH IT? 
-        $result = $access_code_record;
-        // or get the PUBLIC SURVEY URL and redirect there?
-        // need to do some linking from kit_submission?
-        // so after survey complete hook?
-
-        //0.  GET NEXT AVAIL ID
-        //1.  CREATE NEW RECORD
-        //2.  POPULATE those 2 fields
-        //3.  REDIRECT TO THAT SURVEY URL
-
-        //FOR NOW? JUST RETURN THE ENTIRE POST FOR NOW?
-        $result = $_POST;
+        //3.  GET PUBLIC SURVEY URL WITH FIELDS LINKED
+        $survey_link = \REDCap::getSurveyLink($record=$next_id, $instrument='invitation_questionnaire', $event_id='', $instance=1, $project_id=$this->main_project);
 
         // Return result
         header("Content-type: application/json");
-        echo json_encode($result);
+        echo json_encode(array("survey_url" => $survey_link));
     }
 
     /**
@@ -166,61 +172,113 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
         echo json_encode($result);
     }
 
+
     /**
-     * Finds the currentProject for the user and passcode
+     * GET DATA FROM PROJECT DATA TIED TO THIS EM
      * @return bool
      */
-    public function getAccessCodeProject() {
+    public function getTertProjectData($p_type) {
         foreach ($this->enabledProjects as $pid => $project_data) {
-            // TODO NEED TO CHECK WHICH MODE IS PROJECT 
-            // Look FOR ACCESS CODE
             $project_mode   = $this->getProjectSetting('em-mode', $pid);
-            if($project_mode == "access_code_db"){
-                $filter     = "[access_code] = '" . $this->acess_code . "' AND [zip] = '". $this->zip_code ."'";
-                $q          = \REDCap::getData($pid, 'json', null , null, null, null, false, false, false, $filter);
-                $results    = json_decode($q,true);
-                foreach ($results as $result) {
-                    if ($result['access_code'] == $this->access_code && $result['zip'] == $this->zip_code) {
-                        $this->emDebug("Found a match access code match for ", $this->access_code, $this->zip_code);
-                        $this->access_code_record   = $result;
-                        $this->access_code_project  = $pid;
-                        return true;
+            $this->emDebug("em_mode project id" ,$project_mode, $pid);
+            if($project_mode == $p_type){
+                if($p_type == "access_code_db"){
+                    $filter     = "[access_code] = '" . $this->access_code . "'"; //AND [zip] = '". $this->zip_code ."'
+                    $q          = \REDCap::getData($pid, 'json', null , null  , null, null, false, false, false, $filter);
+                    $results    = json_decode($q,true);
+
+                    foreach ($results as $result) {
+                        $ac_code_record             = $result["record_id"];
+                        $current_attempt            = $result["usage_attempts"] ?? 0;
+                        $redeemed_participant_id    = $result["participant_used_id"];
+                        $redeemed_participant_date  = $result["participant_used_date"];
+
+
+                        // LIMIT ATTEMPTS
+                        if($current_attempt > 5){
+                            $this->emDebug("Too many attempts to redeem this Access Code.", $this->access_code, $this->zip_code);
+                            return false;
+                        }
+
+                        //INCREMENT USAGE ATTEMPTS
+                        $data   = array(
+                            "record_id"      => $ac_code_record,
+                            "usage_attempts" => $current_attempt + 1
+                        );
+                        $r      = \REDCap::saveData($pid, 'json', json_encode(array($data)) );
+
+                        //VERIFIY THAT THE CODE USED MATCHES ZIPCODE OF ADDRESS FOR IT
+                        if($result['zip'] == $this->zip_code){
+                            if(!empty($redeemed_participant_id) && !empty($redeemed_participant_date)){
+                                $this->emDebug("This Access Code has already been claimed on ", $this->redeemed_participant_date);
+                                return false;
+                            }
+
+                            $this->emDebug("Found a matching AC/ZIP for: ", $this->access_code, $this->zip_code);
+                            $this->access_code_record   = $ac_code_record;
+                            $this->access_code_project  = $pid;
+                            return true;
+                        }
                     }
+
+                    $this->emDebug("No match found for in Access Code DB for : ", $this->access_code );
+                }
+
+                if($p_type == "kit_submission"){
+                    //TODO
+                    return true;
                 }
             }
         }
 
-        $this->emDebug("No match found for in Access Code DB for : ", $this->access_code, $this->zip_code);
         return false;
     }
 
     /**
-     * Finds the currentProject for the user and passcode
+     * FIND SUPPORT PROJECTS AND THEIR PIDs
      * @return bool
      */
-    public function getKitSubmissionProject() {
-        foreach ($this->enabledProjects as $pid => $project_data) {
-            // TODO NEED TO CHECK WHICH MODE IS PROJECT 
-            // Look FOR kit_submission
-            $project_mode   = $this->getProjectSetting('em-mode', $pid);
-            if($project_mode == "kit_submission"){
-                $filter     = "[access_code] = '" . $this->acess_code . "' AND [zip] = '". $this->zip_code ."'";
-                $q          = \REDCap::getData($pid, 'json', null , null, null, null, false, false, false, $filter);
-                $results    = json_decode($q,true);
-                foreach ($results as $result) {
-                    if ($result['access_code'] == $this->access_code && $result['zip'] == $this->zip_code) {
-                        $this->emDebug("Found a match access code match for ", $this->access_code, $this->zip_code);
-                        $this->kit_submission_record   = $result;
-                        $this->kit_submission_project  = $pid;
-                        return true;
-                    }
-                }
+    public function getAllSupportProjects(){
+        $this->getEnabledProjects();
+        foreach($this->enabledProjects as $project){
+            $pid = $project["pid"];
+            $project_mode = $this->getProjectSetting('em-mode', $pid);
+            switch($project_mode){
+                case "access_code_db":
+                    $this->access_code_project = $pid;
+                break;
+
+                case "kit_order":
+                    $this->main_project = $pid;
+                break;
+
+                case "kit_submission":
+                    $this->kit_submission_project = $pid;
+                break;
             }
         }
-
-        $this->emDebug("No match found for in Access Code DB for : ", $this->access_code, $this->zip_code);
-        return false;
     }
+
+    /**
+     * GET Next available RecordId in a project
+     * @return bool
+     */
+    public function getNextAvailableRecordId($pid){
+        $pro                = new \Project($pid);
+        $primary_record_var = $pro->table_pk;
+
+        $q          = \REDCap::getData($pid, 'json', null, $primary_record_var );
+        $results    = json_decode($q,true);
+        if(empty($results)){
+            $next_id = 1;
+        }else{
+            $last_entry = array_pop($results);
+            $next_id    = $last_entry[$primary_record_var] + 1;
+        }
+
+        return $next_id;
+    }
+
 
     /**
      * Return an error
