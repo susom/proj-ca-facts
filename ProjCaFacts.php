@@ -195,7 +195,7 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
 
 
                         // LIMIT ATTEMPTS
-                        if($current_attempt > 5){
+                        if($current_attempt > 5 && 1==2){
                             $this->emDebug("Too many attempts to redeem this Access Code.", $this->access_code, $this->zip_code);
                             return false;
                         }
