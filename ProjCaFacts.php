@@ -149,6 +149,28 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
     }
 
     /**
+     * Set Temp Store Proj Settings
+     * @param $key $val pare
+     */
+    public function setTempStorage($storekey, $k, $v) {
+        $temp = $this->getTempStorage($storekey);
+        $temp = empty($temp) ? array() : json_decode($temp,1);
+        
+        $temp[$k] = $v;
+        // $this->setSystemSetting($storekey, json_encode($temp));
+    }
+
+    /**
+     * Get Temp Store Proj Settings
+     * @param $key $val pare
+     */
+    public function getTempStorage($storekey) {
+        $temp = $this->getSystemSetting($storekey);
+        return $temp;
+    }
+
+
+    /**
      * Make a new redirect Action url
      * @param $action
      */

@@ -4,7 +4,7 @@ namespace Stanford\ProjCaFacts;
 require $module->getModulePath().'vendor/autoload.php';
 use Twilio\TwiML\VoiceResponse;
 
-session_start();
+$module->getAllSupportProjects();
 
 // Load the text/languages INTO SESSION BUT SESSION DOESNT WORK!
 $lang_file	= $module->getModulePath() . "pages/ivr-phrases.csv";	
@@ -20,6 +20,23 @@ $speaker 	= isset($_GET["speaker"]) 	? $_GET["speaker"] 	: "Polly.Joanna";
 $lang 		= isset($_GET["lang"]) 		? $_GET["lang"] 	: "en";
 $accent 	= isset($_GET["accent"]) 	? $_GET["accent"] 	: "en-US";
 $choice 	= isset($_POST["Digits"]) 	? $_POST["Digits"] 	: null;
+$temp_call_storage_key = $_POST["CallSid"];
+
+switch($lang){
+	case "es":
+		$lang_modifier = "_s";
+	break;
+	case "vi":
+		$lang_modifier = "_v";
+	break;
+	case "zh":
+		$lang_modifier = "_m";
+	break;
+	
+	default:
+		$lang_modifier = ""; 
+	break;
+}
 
 // FIRST CONTACT 
 if(isset($_POST["CallStatus"]) && $_POST["CallStatus"] == "ringing"){
@@ -127,6 +144,10 @@ if(isset($_POST["CallStatus"]) && $_POST["CallStatus"] == "in-progress"){
 
 			default:
 				// 1, YES
+				$rc_var = "fingerprick" . $lang_modifier;
+				$rc_val = $choice;
+				$module->setTempStorage($temp_call_storage_key , $rc_var, $rc_val );
+
 				$action_url = $module->makeActionUrl("invitation-testpeople");
 				$gather 	= $response->gather(['action' => $action_url, 'numDigits' => 1]); 
 				$gather->say($dict["invitation-testpeople"][$lang], ['voice' => $speaker, 'language' => $accent] );
@@ -137,12 +158,9 @@ if(isset($_POST["CallStatus"]) && $_POST["CallStatus"] == "in-progress"){
 			case 3:
 			case 2:
 			case 1:
-				//TODO RECORD THIS NUMBER TO REDCAP
-				// $data = array(
-				// 	"record_id"		=> 1,
-				// 	"numberofkits" 	=> $choice
-				// );
-				// \REDCAP::saveData([MAIN PID],"json", json_encode(array($data)));
+				$rc_var = "testpeople" . $lang_modifier;
+				$rc_val = $choice;
+				$module->setTempStorage($temp_call_storage_key , $rc_var, $rc_val );
 			break;
 
 			default:
@@ -159,9 +177,12 @@ if(isset($_POST["CallStatus"]) && $_POST["CallStatus"] == "in-progress"){
 		switch($choice){
 			case 2:
 				//NO
+				$choice = 0;
 			default:
 				//1 YES
-				//TODO SAVE TO REDCAP
+				$rc_var = "smartphone" . $lang_modifier;
+				$rc_val = $choice;
+				$module->setTempStorage($temp_call_storage_key , $rc_var, $rc_val );
 			break;
 		}
 		$action_url = $module->makeActionUrl("invitation-sms");
@@ -171,9 +192,12 @@ if(isset($_POST["CallStatus"]) && $_POST["CallStatus"] == "in-progress"){
 		switch($choice){
 			case 2:
 				//NO
+				$choice = 0;
 			default:
 				//1 YES
-				//TODO SAVE TO REDCAP
+				$rc_var = "sms" . $lang_modifier;
+				$rc_val = $choice;
+				$module->setTempStorage($temp_call_storage_key , $rc_var, $rc_val );
 			break;
 		}
 		$action_url = $module->makeActionUrl("invitation-phone");
@@ -182,7 +206,20 @@ if(isset($_POST["CallStatus"]) && $_POST["CallStatus"] == "in-progress"){
 	}elseif($action == "invitation-phone"){
 		$phonenum 	= $choice;
 		$module->emDebug("THE PHONENUMBER!", $phonenum);
-		//TODO SAVE TO REDCAP
+
+		$rc_var = "phone" . $lang_modifier;
+		$rc_val = $phonenum;
+		$module->setTempStorage($temp_call_storage_key , $rc_var, $rc_val );
+		
+		$temp 	= $module->getTempStorage($temp_call_storage_key);
+		$module->emDebug( "HERE IS THE COMPLETE TEMPSTORAGE", $temp );
+
+		//TODO RECORD THIS NUMBER TO REDCAP
+		// $data = array(
+		// 	"record_id"		=> 1,
+		// 	"numberofkits" 	=> $choice
+		// );
+		// \REDCAP::saveData([MAIN PID],"json", json_encode(array($data)));
 
 		// ALL DONE INVITATION PATH, SAY GOODBYE AND HANG UP
 		$response->say($dict["invitation-done"][$lang], ['voice' => $speaker, 'language' => $accent] );
@@ -193,26 +230,32 @@ if(isset($_POST["CallStatus"]) && $_POST["CallStatus"] == "in-progress"){
 				$lang 		= "es";
 				$accent		= "es-MX";
 				$speaker	= "Polly.Conchita";
+				$rc_val 	= 2;
 			break;
 
 			case 3:
 				$lang 		= "zh";
 				$accent		= "zh-TW";
 				$speaker	= "alice";
+				$rc_val 	= 4;
 			break;
 
 			case 4:
 				$lang 		= "vi";
 				$accent		= "zh-TW";
 				$speaker	= "alice";
+				$rc_val 	= 3;
 			break;
 
 			default:
 				$lang 		= "en";
 				$accent		= "en-US";
 				$speaker	=  "Polly.Joanna";
+				$rc_val 	= 1;
 			break;
 		}
+
+		$module->setTempStorage($temp_call_storage_key , "language", $rc_val );
 
 		// FIRST TIME BUILD THE action URL MANUALLY, this will let all subsequent requests have memory of language choice, future calls, will alter the action in the url
 		$scheme             = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https://" : "http://");
