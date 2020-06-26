@@ -1,105 +1,235 @@
 <?php
 namespace Stanford\ProjCaFacts;
 /** @var ProjCaFacts $module */
-
-/*
-2020-06-17 14:08:22	258.1	-	-	signup-ivr	7	require_once	[1/1]	ARR	Array
-(
-    [AccountSid] => AC40b3884912172e03b4b9c2c0ad8d2ae8
-    [ApiVersion] => 2010-04-01
-    [CallSid] => CAcffe80cb0064a145787cee6fa668fea2
-    [CallStatus] => ringing
-    [Called] => +16502036757
-    [CalledCity] => 
-    [CalledCountry] => US
-    [CalledState] => CA
-    [CalledZip] => 
-    [Caller] => +16503803405
-    [CallerCity] => PALO ALTO
-    [CallerCountry] => US
-    [CallerState] => CA
-    [CallerZip] => 94304
-    [Direction] => inbound
-    [From] => +16503803405
-    [FromCity] => PALO ALTO
-    [FromCountry] => US
-    [FromState] => CA
-    [FromZip] => 94304
-    [To] => +16502036757
-    [ToCity] => 
-    [ToCountry] => US
-    [ToState] => CA
-    [ToZip] => 
-)
-*/
-$module->emDebug("Incoming Twilio Voice Call _POST:", $_POST);
-
 require $module->getModulePath().'vendor/autoload.php';
 use Twilio\TwiML\VoiceResponse;
 
-// Load the text/languages
-$filename   = $module->getModulePath() . "pages/ivr-phrases.csv";
-$file       = fopen($filename, 'r');
-$dict       = array();
-while (($data = fgetcsv($file, 1000, ",")) !== FALSE) {
-    $var_key    = trim($data[0]);
-    $en_val     = trim($data[1]);
-    $sp_val     = trim($data[2]);
-    
-    $dict[$var_key] = array(
-        "en" => $en_val,
-        "sp" => $sp_val
-    );
-}
-fclose($file);
-$module->emDebug($dict);
+session_start();
+
+// Load the text/languages INTO SESSION BUT SESSION DOESNT WORK!
+$lang_file	= $module->getModulePath() . "pages/ivr-phrases.csv";	
+$dict 		= $module->parseTextLanguages($lang_file);
 
 // BEGIN THE VOICE RESPONSE SCRIPT
-$response = new VoiceResponse;
-$response->say("Welcome to CA Facts", array('voice' => 'alice'));
-print $response;
+$response 	= new VoiceResponse;
+$module->emDebug("Incoming Twilio _POST:", $_POST);
 
-exit();
+// IF SESSION DOESNT WORK, THEN WILL HAVE TO PASS THESE VARS IN THE GET FROM REQUEST TO REQUEST
+$action 	= isset($_GET["action"]) 	? $_GET["action"] 	: null;
+$speaker 	= isset($_GET["speaker"]) 	? $_GET["speaker"] 	: "Polly.Joanna";
+$lang 		= isset($_GET["lang"]) 		? $_GET["lang"] 	: "en";
+$accent 	= isset($_GET["accent"]) 	? $_GET["accent"] 	: "en-US";
+$choice 	= isset($_POST["Digits"]) 	? $_POST["Digits"] 	: null;
 
-$module->emLog($_REQUEST, "Incoming Request - IVR" . " " . __DIR__);
+// FIRST CONTACT 
+if(isset($_POST["CallStatus"]) && $_POST["CallStatus"] == "ringing"){
+	// Say Welcome
+	$response->say($dict["welcome"][$lang], array('voice' => $speaker, 'language' => $accent));
+	$response->pause(['length' => 1]);
 
+	// Use the <Gather> verb to collect user input
+	$gather 	= $response->gather(['numDigits' => 1]); 
+	foreach($dict["language-select"] as $lang => $prompt){
+		switch($lang){
+			case "es": 
+				$accent 	= "es-MX";
+				$speaker 	= "Polly.Conchita";
+			break;
 
-if (! $module->parseIVRInput()) {
-    $module->returnError("Invalid Request Parameters - check your syntax");
+			case "zh": 
+				$accent 	= "zh-TW";
+				$speaker 	= "alice";
+			break;
+
+			case "vi": 
+				// will need to play a recording for 
+				$accent 	= "zh-HK";
+				$speaker 	= "alice";
+			break;
+
+			default:
+				$accent 	= "en-US";
+				$speaker 	= "Polly.Joanna";
+			break;
+		}
+
+		// use the <Say> verb to request input from the user
+		$gather->say($prompt, ['voice' => $speaker, 'language' => $accent] );
+	}
 }
 
-// Response is handled by $module
-$module->IVRHandler();
+// ALL SUBSEQUENT RESPONSES WILL HIT THIS SAME ENDPOINT , DIFFERENTIATE ON "action"
+// TODO ONCE GET FLOW IN, NEED TO TIDY/ORGANIZE IT NEATLY
+if(isset($_POST["CallStatus"]) && $_POST["CallStatus"] == "in-progress"){
+	$response->pause(['length' => 1]);
 
+	if($action == "interest-thanks"){
+		$response->say($dict["interest-thanks"][$lang], ['voice' => $speaker, 'language' => $accent]);
+		$response->pause(['length' => 1]);
+		
+		switch($choice){
+			case 2:
+				// questions path
+				$action_url = $module->makeActionUrl("questions-haveAC");
+				$gather 	= $response->gather(['action' => $action_url, 'numDigits' => 6, 'finishOnKey' => '#']); 
+				$gather->say($dict["questions-haveAC"][$lang], ['voice' => $speaker, 'language' => $accent] );
+			break;
 
+			default:
+				// 1, invitation path
+				$action_url = $module->makeActionUrl("invitation-code");
+				$gather 	= $response->gather(['action' => $action_url, 'numDigits' => 6]); 
+				$gather->say($dict["invitation-code"][$lang], ['voice' => $speaker, 'language' => $accent] );
+			break;
+		}
+	}elseif($action == "questions-haveAC"){
+		switch($choice){
+			case 0:
+				// NO ACCESS CODE, ASK THEM TO LEAVE A VM WITH CONTACTS
+				$response->say($dict["questions-leaveInfo"][$lang], ['voice' => $speaker, 'language' => $accent]);
+				$response->pause(['length' => 1]);
 
+				// RECORD MESSAGE AFTER BEEP
+				$action_url = $module->makeActionUrl("questions-thanks");
+				$response->record(['action' => $action_url, 'timeout' => 10, 'maxLength' => 15, 'transcribe' => 'true']);
+			break;
 
+			default:
+				// 123456, INPUT ACCESS CODE, REDIRECT TO INVITATION FLOW
+				$action_url = $module->makeActionUrl("invitation-zip");
+				$gather 	= $response->gather(['action' => $action_url, 'numDigits' => 5]); 
+				$gather->say($dict["invitation-zip"][$lang], ['voice' => $speaker, 'language' => $accent] );
+			break;
+		}
+	}elseif($action == "questions-thanks"){
+		// ALL DONE QUESTIONS PATH, SAY GOODBYE AND HANG UP
+		// [RecordingDuration] => 20
+		// [RecordingSid] => REcff30a178d6ac306c1535e30931fa406
+		// [RecordingUrl] => https://api.twilio.com/2010-04-01/Accounts/ACacac91f9bd6f40e13e4a4a838c8dffce/Recordings/REcff30a178d6ac306c1535e30931fa406
+		// TODO, SAVE THIS FILE? or JUST FGET SAVE THE RECORDING?
+		$module->emDebug("THE RECORDING VM???", $_POST["RecordingUrl"]);
+		$response->pause(['length' => 1]);
+		$response->say($dict["questions-thanks"][$lang], ['voice' => $speaker, 'language' => $accent] );
+	}elseif($action == "invitation-code"){
+		$action_url = $module->makeActionUrl("invitation-zip");
+		$gather 	= $response->gather(['action' => $action_url, 'numDigits' => 5]); 
+		$gather->say($dict["invitation-zip"][$lang], ['voice' => $speaker, 'language' => $accent] );
+	}elseif($action == "invitation-zip"){
+		$action_url = $module->makeActionUrl("invitation-finger");
+		$gather 	= $response->gather(['action' => $action_url, 'numDigits' => 1]); 
+		$gather->say($dict["invitation-finger"][$lang], ['voice' => $speaker, 'language' => $accent] );
+	}elseif($action == "invitation-finger"){
+		switch($choice){
+			case 2:
+				//NO
+				$response->say($dict["invitation-nofinger"][$lang], ['voice' => $speaker, 'language' => $accent] );
+			break;
 
-// This is the IVR endpoint for Twilio
+			default:
+				// 1, YES
+				$action_url = $module->makeActionUrl("invitation-testpeople");
+				$gather 	= $response->gather(['action' => $action_url, 'numDigits' => 1]); 
+				$gather->say($dict["invitation-testpeople"][$lang], ['voice' => $speaker, 'language' => $accent] );
+			break;
+		}
+	}elseif($action == "invitation-testpeople"){
+		switch($choice){
+			case 3:
+			case 2:
+			case 1:
+				//TODO RECORD THIS NUMBER TO REDCAP
+				// $data = array(
+				// 	"record_id"		=> 1,
+				// 	"numberofkits" 	=> $choice
+				// );
+				// \REDCAP::saveData([MAIN PID],"json", json_encode(array($data)));
+			break;
 
-/*
+			default:
+				// # other than 4 , repeat previous step
+				$action_url = $module->makeActionUrl("invitation-testpeople");
+				$gather 	= $response->gather(['action' => $action_url, 'numDigits' => 1]); 
+				$gather->say($dict["invitation-testpeople"][$lang], ['voice' => $speaker, 'language' => $accent] );
+			break;
+		}
+		$action_url = $module->makeActionUrl("invitation-smartphone");
+		$gather 	= $response->gather(['action' => $action_url, 'numDigits' => 1]); 
+		$gather->say($dict["invitation-smartphone"][$lang], ['voice' => $speaker, 'language' => $accent] );
+	}elseif($action == "invitation-smartphone"){
+		switch($choice){
+			case 2:
+				//NO
+			default:
+				//1 YES
+				//TODO SAVE TO REDCAP
+			break;
+		}
+		$action_url = $module->makeActionUrl("invitation-sms");
+		$gather 	= $response->gather(['action' => $action_url, 'numDigits' => 1]); 
+		$gather->say($dict["invitation-sms"][$lang], ['voice' => $speaker, 'language' => $accent] );
+	}elseif($action == "invitation-sms"){
+		switch($choice){
+			case 2:
+				//NO
+			default:
+				//1 YES
+				//TODO SAVE TO REDCAP
+			break;
+		}
+		$action_url = $module->makeActionUrl("invitation-phone");
+		$gather 	= $response->gather(['action' => $action_url, 'numDigits' => 10]); 
+		$gather->say($dict["invitation-phone"][$lang], ['voice' => $speaker, 'language' => $accent] );
+	}elseif($action == "invitation-phone"){
+		$phonenum 	= $choice;
+		$module->emDebug("THE PHONENUMBER!", $phonenum);
+		//TODO SAVE TO REDCAP
 
-V1: Enter code
-V2: Enter your ZIP
+		// ALL DONE INVITATION PATH, SAY GOODBYE AND HANG UP
+		$response->say($dict["invitation-done"][$lang], ['voice' => $speaker, 'language' => $accent] );
+	}else{
+		// SET LANGUAGE (into SESSION) AND PROMPT FOR Kit Order / Questions
+		switch($_POST["Digits"]){
+			case 2:
+				$lang 		= "es";
+				$accent		= "es-MX";
+				$speaker	= "Polly.Conchita";
+			break;
 
---
-Q1. Please select a language:
-    1. English,
-    2. Spanish
-    3. Viet
-    4. Chinese
+			case 3:
+				$lang 		= "zh";
+				$accent		= "zh-TW";
+				$speaker	= "alice";
+			break;
 
-Q2. Y/N Can ypou prick blood
+			case 4:
+				$lang 		= "vi";
+				$accent		= "zh-TW";
+				$speaker	= "alice";
+			break;
 
-Q3. How many people
+			default:
+				$lang 		= "en";
+				$accent		= "en-US";
+				$speaker	=  "Polly.Joanna";
+			break;
+		}
 
-Q4. Do you have a phone or computer?
+		// FIRST TIME BUILD THE action URL MANUALLY, this will let all subsequent requests have memory of language choice, future calls, will alter the action in the url
+		$scheme             = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https://" : "http://");
+        $curURL             = $scheme . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'];
+        $parse_url          = parse_url($curURL);
+        $qsarr              = explode("&", urldecode($parse_url["query"]) );
+        array_unshift($qsarr,"lang=".$lang);
+        array_unshift($qsarr,"speaker=".$speaker);
+        array_unshift($qsarr,"accent=".$accent);
+        array_unshift($qsarr,"action=interest-thanks");
 
-if (yes)
+        $action_url = $scheme . $parse_url["host"] . $parse_url["path"] . "?" . implode("&",$qsarr);
+		$gather 	= $response->gather(['action' => $action_url, 'numDigits' => 1]); 
+		$gather->say($dict["call-type"][$lang], ['voice' => $speaker, 'language' => $accent] );
+	}
+}
 
-Q5. Can you send you SMS messages on a phone number?
-if (yes)
-
-Q6. Enter Phone Number
-
- */
+print($response);
+$response->hangup();
+exit();

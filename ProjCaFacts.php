@@ -149,29 +149,51 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
     }
 
     /**
-     * Parses IVR request and sets up object
-     * @return bool request valid
+     * Make a new redirect Action url
+     * @param $action
      */
-    public function parseIVRInput() {
-        $this->emDebug("Incoming IVR POST: ", $_POST);
-
-        //TODO need to figure out what is coming from IVR
-
-        $valid = 1 ? false : true;
-        $this->emDebug($valid);
-
-        return $valid;
+    public function makeActionUrl($action){
+        $scheme             = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https://" : "http://");
+        $curURL             = $scheme . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'];
+        $parse_url          = parse_url($curURL);
+        $qsarr              = explode("&", urldecode($parse_url["query"]) );
+        if(isset($_GET["action"]) ){
+            foreach($qsarr as $i => $str){
+                if(strpos($str,"action") > -1){
+                    $this->emDebug("found action, remove it:", $str);
+                    unset($qsarr[$i]);
+                    break;
+                }
+            }
+        }
+        array_unshift($qsarr,"action=".$action);
+        return $scheme . $parse_url["host"] . $parse_url["path"] . "?" . implode("&",$qsarr);
     }
 
-    public function IVRHandler() {
-        //TODO figure out what is coming from twilio
-        $result = array();
-
-        // Return result
-        header("Content-type: application/json");
-        echo json_encode($result);
+    /**
+     * Parse IVR Script + Translations
+     * @param $filename
+     */
+    public function parseTextLanguages($filename) {
+        $file       = fopen($filename, 'r');
+        $dict       = array();
+        while (($data = fgetcsv($file, 1000, ",")) !== FALSE) {
+            $var_key    = trim($data[0]);
+            $en_val     = trim($data[1]);
+            $sp_val     = trim($data[2]);
+            $zh_val     = trim($data[3]);
+            $vi_val     = trim($data[4]);
+            
+            $dict[$var_key] = array(
+                "en" => $en_val,
+                "es" => $sp_val,
+                "zh" => $zh_val,
+                "vi" => $vi_val
+            );
+        }
+        fclose($file);
+        return $dict;
     }
-
 
     /**
      * GET DATA FROM PROJECT DATA TIED TO THIS EM
@@ -290,6 +312,8 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
         echo json_encode(array("error" => $msg));
         exit();
     }
+
+
 
     function emLog() {
         $emLogger = \ExternalModules\ExternalModules::getModuleInstance('em_logger');
