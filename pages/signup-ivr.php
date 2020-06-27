@@ -1,6 +1,7 @@
 <?php
 namespace Stanford\ProjCaFacts;
-/** @var ProjCaFacts $module */
+/** @var \Stanford\ProjCaFacts\ProjCaFacts $module */
+
 require $module->getModulePath().'vendor/autoload.php';
 use Twilio\TwiML\VoiceResponse;
 
@@ -12,7 +13,6 @@ $dict 		= $module->parseTextLanguages($lang_file);
 
 // BEGIN THE VOICE RESPONSE SCRIPT
 $response 	= new VoiceResponse;
-$module->emDebug("Incoming Twilio _POST:", $_POST);
 
 // IF SESSION DOESNT WORK, THEN WILL HAVE TO PASS THESE VARS IN THE GET FROM REQUEST TO REQUEST
 $action 	= isset($_GET["action"]) 	? $_GET["action"] 	: null;
@@ -40,6 +40,8 @@ switch($lang){
 
 // FIRST CONTACT 
 if(isset($_POST["CallStatus"]) && $_POST["CallStatus"] == "ringing"){
+	$module->emDebug("Incoming Twilio _POST:", $_POST);
+
 	// Say Welcome
 	$response->say($dict["welcome"][$lang], array('voice' => $speaker, 'language' => $accent));
 	$response->pause(['length' => 1]);
@@ -80,10 +82,10 @@ if(isset($_POST["CallStatus"]) && $_POST["CallStatus"] == "ringing"){
 if(isset($_POST["CallStatus"]) && $_POST["CallStatus"] == "in-progress"){
 	$response->pause(['length' => 1]);
 
+	$module->emDebug("GET", $_GET);
 	if($action == "interest-thanks"){
 		$response->say($dict["interest-thanks"][$lang], ['voice' => $speaker, 'language' => $accent]);
 		$response->pause(['length' => 1]);
-		
 		switch($choice){
 			case 2:
 				// questions path
@@ -108,7 +110,7 @@ if(isset($_POST["CallStatus"]) && $_POST["CallStatus"] == "in-progress"){
 
 				// RECORD MESSAGE AFTER BEEP
 				$action_url = $module->makeActionUrl("questions-thanks");
-				$response->record(['action' => $action_url, 'timeout' => 10, 'maxLength' => 15, 'transcribe' => 'true']);
+				$response->record(['action' => $action_url, 'timeout' => 10, 'maxLength' => 15, 'transcribe' => 'true']); //transcribeCallback = [URL for ASYNC HIT WHEN DONE]
 			break;
 
 			default:
@@ -128,6 +130,7 @@ if(isset($_POST["CallStatus"]) && $_POST["CallStatus"] == "in-progress"){
 		$response->pause(['length' => 1]);
 		$response->say($dict["questions-thanks"][$lang], ['voice' => $speaker, 'language' => $accent] );
 	}elseif($action == "invitation-code"){
+
 		$action_url = $module->makeActionUrl("invitation-zip");
 		$gather 	= $response->gather(['action' => $action_url, 'numDigits' => 5]); 
 		$gather->say($dict["invitation-zip"][$lang], ['voice' => $speaker, 'language' => $accent] );
@@ -214,13 +217,6 @@ if(isset($_POST["CallStatus"]) && $_POST["CallStatus"] == "in-progress"){
 		$temp 	= $module->getTempStorage($temp_call_storage_key);
 		$module->emDebug( "HERE IS THE COMPLETE TEMPSTORAGE", $temp );
 
-		//TODO RECORD THIS NUMBER TO REDCAP
-		// $data = array(
-		// 	"record_id"		=> 1,
-		// 	"numberofkits" 	=> $choice
-		// );
-		// \REDCAP::saveData([MAIN PID],"json", json_encode(array($data)));
-
 		// ALL DONE INVITATION PATH, SAY GOODBYE AND HANG UP
 		$response->say($dict["invitation-done"][$lang], ['voice' => $speaker, 'language' => $accent] );
 	}else{
@@ -256,13 +252,13 @@ if(isset($_POST["CallStatus"]) && $_POST["CallStatus"] == "in-progress"){
 		}
 
 		$module->setTempStorage($temp_call_storage_key , "language", $rc_val );
-
+		
 		// FIRST TIME BUILD THE action URL MANUALLY, this will let all subsequent requests have memory of language choice, future calls, will alter the action in the url
 		$scheme             = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https://" : "http://");
         $curURL             = $scheme . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'];
         $parse_url          = parse_url($curURL);
-        $qsarr              = explode("&", urldecode($parse_url["query"]) );
-        array_unshift($qsarr,"lang=".$lang);
+		$qsarr              = explode("&", urldecode($parse_url["query"]) );
+		array_unshift($qsarr,"lang=".$lang);
         array_unshift($qsarr,"speaker=".$speaker);
         array_unshift($qsarr,"accent=".$accent);
         array_unshift($qsarr,"action=interest-thanks");
@@ -274,5 +270,6 @@ if(isset($_POST["CallStatus"]) && $_POST["CallStatus"] == "in-progress"){
 }
 
 print($response);
+$response->pause(['length' => 1]);
 $response->hangup();
 exit();

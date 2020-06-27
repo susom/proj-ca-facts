@@ -92,7 +92,32 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
         }
 
         $this->enabledProjects = $enabledProjects;
-        $this->emDebug($this->enabledProjects, "Enabled Projects");
+        // $this->emDebug($this->enabledProjects, "Enabled Projects");
+    }
+
+    /**
+     * FIND SUPPORT PROJECTS AND THEIR PIDs
+     * @return bool
+     */
+    public function getAllSupportProjects(){
+        $this->getEnabledProjects();
+        foreach($this->enabledProjects as $project){
+            $pid = $project["pid"];
+            $project_mode = $this->getProjectSetting('em-mode', $pid);
+            switch($project_mode){
+                case "access_code_db":
+                    $this->access_code_project = $pid;
+                break;
+
+                case "kit_order":
+                    $this->main_project = $pid;
+                break;
+
+                case "kit_submission":
+                    $this->kit_submission_project = $pid;
+                break;
+            }
+        }
     }
 
     /**
@@ -154,10 +179,11 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
      */
     public function setTempStorage($storekey, $k, $v) {
         $temp = $this->getTempStorage($storekey);
-        $temp = empty($temp) ? array() : json_decode($temp,1);
-        
         $temp[$k] = $v;
+
+        // THIS IS CAUSING TWILIO TO FAIL WHY? 
         // $this->setSystemSetting($storekey, json_encode($temp));
+        return; 
     }
 
     /**
@@ -166,9 +192,9 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
      */
     public function getTempStorage($storekey) {
         $temp = $this->getSystemSetting($storekey);
+        $temp = empty($temp) ? array() : json_decode($temp,1);
         return $temp;
     }
-
 
     /**
      * Make a new redirect Action url
@@ -187,8 +213,8 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
                     break;
                 }
             }
+            array_unshift($qsarr,"action=".$action);
         }
-        array_unshift($qsarr,"action=".$action);
         return $scheme . $parse_url["host"] . $parse_url["path"] . "?" . implode("&",$qsarr);
     }
 
@@ -279,31 +305,6 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
     }
 
     /**
-     * FIND SUPPORT PROJECTS AND THEIR PIDs
-     * @return bool
-     */
-    public function getAllSupportProjects(){
-        $this->getEnabledProjects();
-        foreach($this->enabledProjects as $project){
-            $pid = $project["pid"];
-            $project_mode = $this->getProjectSetting('em-mode', $pid);
-            switch($project_mode){
-                case "access_code_db":
-                    $this->access_code_project = $pid;
-                break;
-
-                case "kit_order":
-                    $this->main_project = $pid;
-                break;
-
-                case "kit_submission":
-                    $this->kit_submission_project = $pid;
-                break;
-            }
-        }
-    }
-
-    /**
      * GET Next available RecordId in a project
      * @return bool
      */
@@ -334,8 +335,6 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
         echo json_encode(array("error" => $msg));
         exit();
     }
-
-
 
     function emLog() {
         $emLogger = \ExternalModules\ExternalModules::getModuleInstance('em_logger');
