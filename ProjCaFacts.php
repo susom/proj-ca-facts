@@ -128,6 +128,9 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
         $this->emDebug("Incoming POST AC + Zip: ", $_POST);
         
         // TODO add filter VAR
+        if (empty($_POST)){
+            $_POST = json_decode(file_get_contents('php://input'), true);
+        }
         $this->access_code   = isset($_POST[self::FIELD_ACCESS_CODE]) ? strtoupper(trim($_POST[self::FIELD_ACCESS_CODE])) : NULL ;
         $this->zip_code      = isset($_POST[self::FIELD_ZIP])         ? trim($_POST[self::FIELD_ZIP]) : NULL ;
         
