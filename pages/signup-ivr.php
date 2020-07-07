@@ -5,16 +5,17 @@ namespace Stanford\ProjCaFacts;
 require $module->getModulePath().'vendor/autoload.php';
 use Twilio\TwiML\VoiceResponse;
 
+
 $module->getAllSupportProjects();
 
 // Load the text/languages INTO SESSION BUT SESSION DOESNT WORK!
-$lang_file	= $module->getModulePath() . "pages/ivr-phrases.csv";	
+$lang_file	= $module->getModulePath() . "docs/ivr-phrases.csv";	
 $dict 		= $module->parseTextLanguages($lang_file);
 
 // BEGIN THE VOICE RESPONSE SCRIPT
 $response 	= new VoiceResponse;
 
-// IF SESSION DOESNT WORK, THEN WILL HAVE TO PASS THESE VARS IN THE GET FROM REQUEST TO REQUEST
+// passing data via QueryString
 $action 	= isset($_GET["action"]) 	? $_GET["action"] 	: null;
 $speaker 	= isset($_GET["speaker"]) 	? $_GET["speaker"] 	: "Polly.Joanna";
 $lang 		= isset($_GET["lang"]) 		? $_GET["lang"] 	: "en";
@@ -73,7 +74,12 @@ if(isset($_POST["CallStatus"]) && $_POST["CallStatus"] == "ringing"){
 		}
 
 		// use the <Say> verb to request input from the user
-		$gather->say($prompt, ['voice' => $speaker, 'language' => $accent] );
+		if($lang == "vi"){
+			$module->emDebug("language VIetnamese play mp3", $module->getAssetUrl("v_languageselect.mp3"));
+			$response->play($module->getAssetUrl("v_languageselect.mp3"));
+		}else{
+			$gather->say($prompt, ['voice' => $speaker, 'language' => $accent] );
+		}
 	}
 }
 
@@ -91,21 +97,36 @@ if(isset($_POST["CallStatus"]) && $_POST["CallStatus"] == "in-progress"){
 				// questions path
 				$action_url = $module->makeActionUrl("questions-haveAC");
 				$gather 	= $response->gather(['action' => $action_url, 'numDigits' => 6, 'finishOnKey' => '#']); 
-				$gather->say($dict["questions-haveAC"][$lang], ['voice' => $speaker, 'language' => $accent] );
+				if($lang == "vi"){
+					$module->emDebug("language VIetnamese play mp3");
+					$response->play($module->getAssetUrl("v_q_haveAC.mp3"));
+				}else{
+					$gather->say($dict["questions-haveAC"][$lang], ['voice' => $speaker, 'language' => $accent] );
+				}
 			break;
 
 			default:
 				// 1, invitation path
 				$action_url = $module->makeActionUrl("invitation-code");
 				$gather 	= $response->gather(['action' => $action_url, 'numDigits' => 6]); 
-				$gather->say($dict["invitation-code"][$lang], ['voice' => $speaker, 'language' => $accent] );
+				if($lang == "vi"){
+					$module->emDebug("language VIetnamese play mp3");
+					$response->play($module->getAssetUrl("v_i_code.mp3"));
+				}else{
+					$gather->say($dict["invitation-code"][$lang], ['voice' => $speaker, 'language' => $accent] );
+				}
 			break;
 		}
 	}elseif($action == "questions-haveAC"){
 		switch($choice){
 			case 0:
 				// NO ACCESS CODE, ASK THEM TO LEAVE A VM WITH CONTACTS
-				$response->say($dict["questions-leaveInfo"][$lang], ['voice' => $speaker, 'language' => $accent]);
+				if($lang == "vi"){
+					$module->emDebug("language VIetnamese play mp3");
+					$response->play($module->getAssetUrl("v_q_leaveinfo.mp3"));
+				}else{
+					$response->say($dict["questions-leaveInfo"][$lang], ['voice' => $speaker, 'language' => $accent]);
+				}
 				$response->pause(['length' => 1]);
 
 				// RECORD MESSAGE AFTER BEEP
@@ -117,7 +138,12 @@ if(isset($_POST["CallStatus"]) && $_POST["CallStatus"] == "in-progress"){
 				// 123456, INPUT ACCESS CODE, REDIRECT TO INVITATION FLOW
 				$action_url = $module->makeActionUrl("invitation-zip");
 				$gather 	= $response->gather(['action' => $action_url, 'numDigits' => 5]); 
-				$gather->say($dict["invitation-zip"][$lang], ['voice' => $speaker, 'language' => $accent] );
+				if($lang == "vi"){
+					$module->emDebug("language VIetnamese play mp3");
+					$response->play($module->getAssetUrl("v_i_zip.mp3"));
+				}else{
+					$gather->say($dict["invitation-zip"][$lang], ['voice' => $speaker, 'language' => $accent] );
+				}	
 			break;
 		}
 	}elseif($action == "questions-thanks"){
@@ -128,21 +154,40 @@ if(isset($_POST["CallStatus"]) && $_POST["CallStatus"] == "in-progress"){
 		// TODO, SAVE THIS FILE? or JUST FGET SAVE THE RECORDING?
 		$module->emDebug("THE RECORDING VM???", $_POST["RecordingUrl"]);
 		$response->pause(['length' => 1]);
-		$response->say($dict["questions-thanks"][$lang], ['voice' => $speaker, 'language' => $accent] );
+		if($lang == "vi"){
+			$module->emDebug("language VIetnamese play mp3");
+			$response->play($module->getAssetUrl("v_q_thanks.mp3"));
+		}else{
+			$response->say($dict["questions-thanks"][$lang], ['voice' => $speaker, 'language' => $accent] );
+		}
 	}elseif($action == "invitation-code"){
-
 		$action_url = $module->makeActionUrl("invitation-zip");
 		$gather 	= $response->gather(['action' => $action_url, 'numDigits' => 5]); 
-		$gather->say($dict["invitation-zip"][$lang], ['voice' => $speaker, 'language' => $accent] );
+		if($lang == "vi"){
+			$module->emDebug("language VIetnamese play mp3");
+			$response->play($module->getAssetUrl("v_i_zip.mp3"));
+		}else{
+			$gather->say($dict["invitation-zip"][$lang], ['voice' => $speaker, 'language' => $accent] );
+		}
 	}elseif($action == "invitation-zip"){
 		$action_url = $module->makeActionUrl("invitation-finger");
 		$gather 	= $response->gather(['action' => $action_url, 'numDigits' => 1]); 
-		$gather->say($dict["invitation-finger"][$lang], ['voice' => $speaker, 'language' => $accent] );
+		if($lang == "vi"){
+			$module->emDebug("language VIetnamese play mp3");
+			$response->play($module->getAssetUrl("v_i_finger.mp3"));
+		}else{
+			$gather->say($dict["invitation-finger"][$lang], ['voice' => $speaker, 'language' => $accent] );
+		}
 	}elseif($action == "invitation-finger"){
 		switch($choice){
 			case 2:
 				//NO
-				$response->say($dict["invitation-nofinger"][$lang], ['voice' => $speaker, 'language' => $accent] );
+				if($lang == "vi"){
+					$module->emDebug("language VIetnamese play mp3");
+					$response->play($module->getAssetUrl("v_i_nofinger.mp3"));
+				}else{
+					$response->say($dict["invitation-nofinger"][$lang], ['voice' => $speaker, 'language' => $accent] );
+				}
 			break;
 
 			default:
@@ -153,7 +198,12 @@ if(isset($_POST["CallStatus"]) && $_POST["CallStatus"] == "in-progress"){
 
 				$action_url = $module->makeActionUrl("invitation-testpeople");
 				$gather 	= $response->gather(['action' => $action_url, 'numDigits' => 1]); 
-				$gather->say($dict["invitation-testpeople"][$lang], ['voice' => $speaker, 'language' => $accent] );
+				if($lang == "vi"){
+					$module->emDebug("language VIetnamese play mp3");
+					$response->play($module->getAssetUrl("v_i_testpeople.mp3"));
+				}else{
+					$gather->say($dict["invitation-testpeople"][$lang], ['voice' => $speaker, 'language' => $accent] );
+				}
 			break;
 		}
 	}elseif($action == "invitation-testpeople"){
@@ -170,12 +220,21 @@ if(isset($_POST["CallStatus"]) && $_POST["CallStatus"] == "in-progress"){
 				// # other than 4 , repeat previous step
 				$action_url = $module->makeActionUrl("invitation-testpeople");
 				$gather 	= $response->gather(['action' => $action_url, 'numDigits' => 1]); 
-				$gather->say($dict["invitation-testpeople"][$lang], ['voice' => $speaker, 'language' => $accent] );
+				if($lang == "vi"){
+					$module->emDebug("language VIetnamese play mp3");
+					$response->play($module->getAssetUrl("v_i_testpeople.mp3"));
+				}else{
+					$gather->say($dict["invitation-testpeople"][$lang], ['voice' => $speaker, 'language' => $accent] );
+				}
 			break;
 		}
 		$action_url = $module->makeActionUrl("invitation-smartphone");
 		$gather 	= $response->gather(['action' => $action_url, 'numDigits' => 1]); 
-		$gather->say($dict["invitation-smartphone"][$lang], ['voice' => $speaker, 'language' => $accent] );
+		if($lang == "vi"){
+			$response->play($module->getAssetUrl("v_i_smartphone.mp3"));
+		}else{
+			$gather->say($dict["invitation-smartphone"][$lang], ['voice' => $speaker, 'language' => $accent] );
+		}
 	}elseif($action == "invitation-smartphone"){
 		switch($choice){
 			case 2:
@@ -190,7 +249,12 @@ if(isset($_POST["CallStatus"]) && $_POST["CallStatus"] == "in-progress"){
 		}
 		$action_url = $module->makeActionUrl("invitation-sms");
 		$gather 	= $response->gather(['action' => $action_url, 'numDigits' => 1]); 
-		$gather->say($dict["invitation-sms"][$lang], ['voice' => $speaker, 'language' => $accent] );
+		if($lang == "vi"){
+			$module->emDebug("language VIetnamese play mp3");
+			$response->play($module->getAssetUrl("v_i_sms.mp3"));
+		}else{
+			$gather->say($dict["invitation-sms"][$lang], ['voice' => $speaker, 'language' => $accent] );
+		}
 	}elseif($action == "invitation-sms"){
 		switch($choice){
 			case 2:
@@ -204,8 +268,13 @@ if(isset($_POST["CallStatus"]) && $_POST["CallStatus"] == "in-progress"){
 			break;
 		}
 		$action_url = $module->makeActionUrl("invitation-phone");
-		$gather 	= $response->gather(['action' => $action_url, 'numDigits' => 10]); 
-		$gather->say($dict["invitation-phone"][$lang], ['voice' => $speaker, 'language' => $accent] );
+		$gather 	= $response->gather(['action' => $action_url, 'numDigits' => 11, 'finishOnKey' => '#']); 
+		if($lang == "vi"){
+			$module->emDebug("language VIetnamese play mp3");
+			$response->play($module->getAssetUrl("v_i_phone.mp3"));
+		}else{
+			$gather->say($dict["invitation-phone"][$lang], ['voice' => $speaker, 'language' => $accent] );
+		}
 	}elseif($action == "invitation-phone"){
 		$phonenum 	= $choice;
 		$module->emDebug("THE PHONENUMBER!", $phonenum);
@@ -218,7 +287,12 @@ if(isset($_POST["CallStatus"]) && $_POST["CallStatus"] == "in-progress"){
 		$module->emDebug( "HERE IS THE COMPLETE TEMPSTORAGE", $temp );
 
 		// ALL DONE INVITATION PATH, SAY GOODBYE AND HANG UP
-		$response->say($dict["invitation-done"][$lang], ['voice' => $speaker, 'language' => $accent] );
+		if($lang == "vi"){
+			$module->emDebug("language VIetnamese play mp3");
+			$response->play($module->getAssetUrl("v_i_done.mp3"));
+		}else{
+			$response->say($dict["invitation-done"][$lang], ['voice' => $speaker, 'language' => $accent] );
+		}
 	}else{
 		// SET LANGUAGE (into SESSION) AND PROMPT FOR Kit Order / Questions
 		switch($_POST["Digits"]){
@@ -265,7 +339,12 @@ if(isset($_POST["CallStatus"]) && $_POST["CallStatus"] == "in-progress"){
 
         $action_url = $scheme . $parse_url["host"] . $parse_url["path"] . "?" . implode("&",$qsarr);
 		$gather 	= $response->gather(['action' => $action_url, 'numDigits' => 1]); 
-		$gather->say($dict["call-type"][$lang], ['voice' => $speaker, 'language' => $accent] );
+		if($lang == "vi"){
+			$module->emDebug("language VIetnamese play mp3");
+			$response->play($module->getAssetUrl("v_calltype.mp3"));
+		}else{
+			$gather->say($dict["call-type"][$lang], ['voice' => $speaker, 'language' => $accent] );
+		}
 	}
 }
 

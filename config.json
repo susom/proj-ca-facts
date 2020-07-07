@@ -24,6 +24,8 @@
 	"permissions": [
 	],
 
+	"framework-version": 5,
+
 	"enable-every-page-hooks-on-system-pages": false,
 
 	"links": {
@@ -45,8 +47,8 @@
 
 	"no-auth-pages": [
         "pages/signup-ivr",
-        "pages/signup"
-
+		"pages/signup",
+		"getAsset"
 	],
 
 	"project-settings": [

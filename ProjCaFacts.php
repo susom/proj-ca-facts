@@ -327,6 +327,39 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
         return $next_id;
     }
 
+    /*
+        Pull static files from within EM dir Structure
+    */
+    function getAssetUrl($file){
+        $this->emDebug("sup getAssetURL");
+
+        // return "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3";
+
+        return "http://ff2e6ed49db1.ngrok.io/modules-local/proj_ca_facts_v9.9.9/docs/audio/v_calltype.mp3";
+
+	    return $this->framework->getUrl("getAsset.php?file=".$file."&ts=". $this->getLastModified() , true, true);
+    }
+    
+    function setLastModified(){
+        $ts = time();
+        $this->setSystemSetting("last_modified",$ts);
+        $this->LAST_MODIFIED = $ts;
+    }
+
+    function getLastModified(){
+        return 123456;
+
+        if(empty($this->LAST_MODIFIED)){
+	        $ts = $this->getSystemSetting("last_modified");
+	        if(empty($ts)){
+                $this->setLastModified();
+            }else{
+                $this->LAST_MODIFIED = $ts;
+            }
+        }
+
+	    return $this->LAST_MODIFIED;
+    }
 
     /**
      * Return an error
