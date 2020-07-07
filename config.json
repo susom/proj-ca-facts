@@ -24,7 +24,7 @@
 	"permissions": [
 	],
 
-	"framework-version": 5,
+	"framework-version": 4,
 
 	"enable-every-page-hooks-on-system-pages": false,
 
