@@ -5,7 +5,6 @@ namespace Stanford\ProjCaFacts;
 require $module->getModulePath().'vendor/autoload.php';
 use Twilio\TwiML\VoiceResponse;
 
-
 $module->getAllSupportProjects();
 
 // Load the text/languages INTO SESSION BUT SESSION DOESNT WORK!
@@ -15,14 +14,19 @@ $dict 		= $module->parseTextLanguages($lang_file);
 // BEGIN THE VOICE RESPONSE SCRIPT
 $response 	= new VoiceResponse;
 
-// passing data via QueryString
-$action 	= isset($_GET["action"]) 	? $_GET["action"] 	: null;
-$speaker 	= isset($_GET["speaker"]) 	? $_GET["speaker"] 	: "Polly.Joanna";
-$lang 		= isset($_GET["lang"]) 		? $_GET["lang"] 	: "en";
-$accent 	= isset($_GET["accent"]) 	? $_GET["accent"] 	: "en-US";
-$choice 	= isset($_POST["Digits"]) 	? $_POST["Digits"] 	: null;
-$temp_call_storage_key = $_POST["CallSid"];
+// POST FROM TWILIO
+$temp_call_storage_key 	= $_POST["CallSid"];
+$choice 				= isset($_POST["Digits"]) 	? $_POST["Digits"] 	: null;
 
+// CALL TEMP STORAGE - PERSISTS THROUGH OUT CALL
+$call_vars 	= $module->getTempStorage($temp_call_storage_key);
+$action 	= isset($call_vars["action"]) 	? $call_vars["action"] 	: "fuckoff";
+$speaker 	= isset($call_vars["speaker"]) 	? $call_vars["speaker"] : "Polly.Joanna";
+$accent 	= isset($call_vars["accent"]) 	? $call_vars["accent"] 	: "en-US";
+$lang 		= isset($call_vars["lang"]) 	? $call_vars["lang"] 	: "en";
+$module->emDebug("HIT THIS WITH EVERY POST BACK FROM TWILIO?",$temp_call_storage_key, $call_vars);
+
+// STRUCTURE OF REDCAP PRJECT WILL NEED TO MODIFY THE ENGLISH field_names for OTHER LANGUAGEs 
 switch($lang){
 	case "es":
 		$lang_modifier = "_s";
@@ -88,17 +92,16 @@ if(isset($_POST["CallStatus"]) && $_POST["CallStatus"] == "ringing"){
 if(isset($_POST["CallStatus"]) && $_POST["CallStatus"] == "in-progress"){
 	$response->pause(['length' => 1]);
 
-	$module->emDebug("GET", $_GET);
 	if($action == "interest-thanks"){
 		$response->say($dict["interest-thanks"][$lang], ['voice' => $speaker, 'language' => $accent]);
 		$response->pause(['length' => 1]);
+		
 		switch($choice){
 			case 2:
 				// questions path
-				$action_url = $module->makeActionUrl("questions-haveAC");
-				$gather 	= $response->gather(['action' => $action_url, 'numDigits' => 6, 'finishOnKey' => '#']); 
+				$module->setTempStorage($temp_call_storage_key , "action", "questions-haveAC" );
+				$gather 	= $response->gather(['numDigits' => 6, 'finishOnKey' => '#']); 
 				if($lang == "vi"){
-					$module->emDebug("language VIetnamese play mp3");
 					$response->play($module->getAssetUrl("v_q_haveAC.mp3"));
 				}else{
 					$gather->say($dict["questions-haveAC"][$lang], ['voice' => $speaker, 'language' => $accent] );
@@ -107,10 +110,9 @@ if(isset($_POST["CallStatus"]) && $_POST["CallStatus"] == "in-progress"){
 
 			default:
 				// 1, invitation path
-				$action_url = $module->makeActionUrl("invitation-code");
-				$gather 	= $response->gather(['action' => $action_url, 'numDigits' => 6]); 
+				$module->setTempStorage($temp_call_storage_key , "action", "invitation-code" );
+				$gather 	= $response->gather(['numDigits' => 6]); 
 				if($lang == "vi"){
-					$module->emDebug("language VIetnamese play mp3");
 					$response->play($module->getAssetUrl("v_i_code.mp3"));
 				}else{
 					$gather->say($dict["invitation-code"][$lang], ['voice' => $speaker, 'language' => $accent] );
@@ -122,7 +124,6 @@ if(isset($_POST["CallStatus"]) && $_POST["CallStatus"] == "in-progress"){
 			case 0:
 				// NO ACCESS CODE, ASK THEM TO LEAVE A VM WITH CONTACTS
 				if($lang == "vi"){
-					$module->emDebug("language VIetnamese play mp3");
 					$response->play($module->getAssetUrl("v_q_leaveinfo.mp3"));
 				}else{
 					$response->say($dict["questions-leaveInfo"][$lang], ['voice' => $speaker, 'language' => $accent]);
@@ -130,16 +131,19 @@ if(isset($_POST["CallStatus"]) && $_POST["CallStatus"] == "in-progress"){
 				$response->pause(['length' => 1]);
 
 				// RECORD MESSAGE AFTER BEEP
-				$action_url = $module->makeActionUrl("questions-thanks");
-				$response->record(['action' => $action_url, 'timeout' => 10, 'maxLength' => 15, 'transcribe' => 'true']); //transcribeCallback = [URL for ASYNC HIT WHEN DONE]
+				$module->setTempStorage($temp_call_storage_key , "action", "questions-thanks" );
+				$response->record(['timeout' => 10, 'maxLength' => 15, 'transcribe' => 'true']); //transcribeCallback = [URL for ASYNC HIT WHEN DONE]
 			break;
 
 			default:
 				// 123456, INPUT ACCESS CODE, REDIRECT TO INVITATION FLOW
-				$action_url = $module->makeActionUrl("invitation-zip");
-				$gather 	= $response->gather(['action' => $action_url, 'numDigits' => 5]); 
+				$rc_var = "code";
+				$rc_val = $choice;
+				$module->setTempStorage($temp_call_storage_key , $rc_var, $rc_val );
+
+				$module->setTempStorage($temp_call_storage_key , "action", "invitation-zip" );
+				$gather 	= $response->gather(['numDigits' => 5]); 
 				if($lang == "vi"){
-					$module->emDebug("language VIetnamese play mp3");
 					$response->play($module->getAssetUrl("v_i_zip.mp3"));
 				}else{
 					$gather->say($dict["invitation-zip"][$lang], ['voice' => $speaker, 'language' => $accent] );
@@ -155,25 +159,30 @@ if(isset($_POST["CallStatus"]) && $_POST["CallStatus"] == "in-progress"){
 		$module->emDebug("THE RECORDING VM???", $_POST["RecordingUrl"]);
 		$response->pause(['length' => 1]);
 		if($lang == "vi"){
-			$module->emDebug("language VIetnamese play mp3");
 			$response->play($module->getAssetUrl("v_q_thanks.mp3"));
 		}else{
 			$response->say($dict["questions-thanks"][$lang], ['voice' => $speaker, 'language' => $accent] );
 		}
 	}elseif($action == "invitation-code"){
-		$action_url = $module->makeActionUrl("invitation-zip");
-		$gather 	= $response->gather(['action' => $action_url, 'numDigits' => 5]); 
+		$rc_var = "code";
+		$rc_val = $choice;
+		$module->setTempStorage($temp_call_storage_key , $rc_var, $rc_val );
+		
+		$module->setTempStorage($temp_call_storage_key , "action", "invitation-zip" );
+		$gather 	= $response->gather(['numDigits' => 5]); 
 		if($lang == "vi"){
-			$module->emDebug("language VIetnamese play mp3");
 			$response->play($module->getAssetUrl("v_i_zip.mp3"));
 		}else{
 			$gather->say($dict["invitation-zip"][$lang], ['voice' => $speaker, 'language' => $accent] );
 		}
 	}elseif($action == "invitation-zip"){
-		$action_url = $module->makeActionUrl("invitation-finger");
-		$gather 	= $response->gather(['action' => $action_url, 'numDigits' => 1]); 
+		$rc_var = "zip";
+		$rc_val = $choice;
+		$module->setTempStorage($temp_call_storage_key , $rc_var, $rc_val );
+		
+		$module->setTempStorage($temp_call_storage_key , "action", "invitation-finger" );
+		$gather 	= $response->gather(['numDigits' => 1]); 
 		if($lang == "vi"){
-			$module->emDebug("language VIetnamese play mp3");
 			$response->play($module->getAssetUrl("v_i_finger.mp3"));
 		}else{
 			$gather->say($dict["invitation-finger"][$lang], ['voice' => $speaker, 'language' => $accent] );
@@ -183,7 +192,6 @@ if(isset($_POST["CallStatus"]) && $_POST["CallStatus"] == "in-progress"){
 			case 2:
 				//NO
 				if($lang == "vi"){
-					$module->emDebug("language VIetnamese play mp3");
 					$response->play($module->getAssetUrl("v_i_nofinger.mp3"));
 				}else{
 					$response->say($dict["invitation-nofinger"][$lang], ['voice' => $speaker, 'language' => $accent] );
@@ -196,10 +204,9 @@ if(isset($_POST["CallStatus"]) && $_POST["CallStatus"] == "in-progress"){
 				$rc_val = $choice;
 				$module->setTempStorage($temp_call_storage_key , $rc_var, $rc_val );
 
-				$action_url = $module->makeActionUrl("invitation-testpeople");
-				$gather 	= $response->gather(['action' => $action_url, 'numDigits' => 1]); 
+				$module->setTempStorage($temp_call_storage_key , "action", "invitation-testpeople" );
+				$gather 	= $response->gather(['numDigits' => 1]); 
 				if($lang == "vi"){
-					$module->emDebug("language VIetnamese play mp3");
 					$response->play($module->getAssetUrl("v_i_testpeople.mp3"));
 				}else{
 					$gather->say($dict["invitation-testpeople"][$lang], ['voice' => $speaker, 'language' => $accent] );
@@ -218,18 +225,17 @@ if(isset($_POST["CallStatus"]) && $_POST["CallStatus"] == "in-progress"){
 
 			default:
 				// # other than 4 , repeat previous step
-				$action_url = $module->makeActionUrl("invitation-testpeople");
-				$gather 	= $response->gather(['action' => $action_url, 'numDigits' => 1]); 
+				$module->setTempStorage($temp_call_storage_key , "action", "invitation-testpeople" );
+				$gather 	= $response->gather(['numDigits' => 1]); 
 				if($lang == "vi"){
-					$module->emDebug("language VIetnamese play mp3");
 					$response->play($module->getAssetUrl("v_i_testpeople.mp3"));
 				}else{
 					$gather->say($dict["invitation-testpeople"][$lang], ['voice' => $speaker, 'language' => $accent] );
 				}
 			break;
 		}
-		$action_url = $module->makeActionUrl("invitation-smartphone");
-		$gather 	= $response->gather(['action' => $action_url, 'numDigits' => 1]); 
+		$module->setTempStorage($temp_call_storage_key , "action", "invitation-smartphone" );
+		$gather 	= $response->gather(['numDigits' => 1]); 
 		if($lang == "vi"){
 			$response->play($module->getAssetUrl("v_i_smartphone.mp3"));
 		}else{
@@ -247,10 +253,9 @@ if(isset($_POST["CallStatus"]) && $_POST["CallStatus"] == "in-progress"){
 				$module->setTempStorage($temp_call_storage_key , $rc_var, $rc_val );
 			break;
 		}
-		$action_url = $module->makeActionUrl("invitation-sms");
-		$gather 	= $response->gather(['action' => $action_url, 'numDigits' => 1]); 
+		$module->setTempStorage($temp_call_storage_key , "action", "invitation-sms" );
+		$gather 	= $response->gather(['numDigits' => 1]); 
 		if($lang == "vi"){
-			$module->emDebug("language VIetnamese play mp3");
 			$response->play($module->getAssetUrl("v_i_sms.mp3"));
 		}else{
 			$gather->say($dict["invitation-sms"][$lang], ['voice' => $speaker, 'language' => $accent] );
@@ -267,35 +272,37 @@ if(isset($_POST["CallStatus"]) && $_POST["CallStatus"] == "in-progress"){
 				$module->setTempStorage($temp_call_storage_key , $rc_var, $rc_val );
 			break;
 		}
-		$action_url = $module->makeActionUrl("invitation-phone");
-		$gather 	= $response->gather(['action' => $action_url, 'numDigits' => 11, 'finishOnKey' => '#']); 
+		$module->setTempStorage($temp_call_storage_key , "action", "invitation-phone" );
+		$gather 	= $response->gather(['numDigits' => 10, 'finishOnKey' => '#']); 
 		if($lang == "vi"){
-			$module->emDebug("language VIetnamese play mp3");
 			$response->play($module->getAssetUrl("v_i_phone.mp3"));
 		}else{
 			$gather->say($dict["invitation-phone"][$lang], ['voice' => $speaker, 'language' => $accent] );
 		}
 	}elseif($action == "invitation-phone"){
 		$phonenum 	= $choice;
-		$module->emDebug("THE PHONENUMBER!", $phonenum);
 
 		$rc_var = "phone" . $lang_modifier;
 		$rc_val = $phonenum;
 		$module->setTempStorage($temp_call_storage_key , $rc_var, $rc_val );
-		
-		$temp 	= $module->getTempStorage($temp_call_storage_key);
-		$module->emDebug( "HERE IS THE COMPLETE TEMPSTORAGE", $temp );
 
 		// ALL DONE INVITATION PATH, SAY GOODBYE AND HANG UP
 		if($lang == "vi"){
-			$module->emDebug("language VIetnamese play mp3");
 			$response->play($module->getAssetUrl("v_i_done.mp3"));
 		}else{
 			$response->say($dict["invitation-done"][$lang], ['voice' => $speaker, 'language' => $accent] );
 		}
+
+		// STORE THE FULL RECORD
+		$all_vars = $module->getTempStorage($temp_call_storage_key);
+		$module->emDebug( "HERE IS THE COMPLETE TEMPSTORAGE- SAVE TO REDCAP BOYEE", $all_vars );
+		$module->IVRHandler($all_vars);
+		
+		// DELETE THE TEMP STORAGE?
+		$module->removeTempStorage($temp_call_storage_key);
 	}else{
 		// SET LANGUAGE (into SESSION) AND PROMPT FOR Kit Order / Questions
-		switch($_POST["Digits"]){
+		switch($choice){
 			case 2:
 				$lang 		= "es";
 				$accent		= "es-MX";
@@ -324,21 +331,16 @@ if(isset($_POST["CallStatus"]) && $_POST["CallStatus"] == "in-progress"){
 				$rc_val 	= 1;
 			break;
 		}
-
-		$module->setTempStorage($temp_call_storage_key , "language", $rc_val );
 		
-		// FIRST TIME BUILD THE action URL MANUALLY, this will let all subsequent requests have memory of language choice, future calls, will alter the action in the url
-		$scheme             = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https://" : "http://");
-        $curURL             = $scheme . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'];
-        $parse_url          = parse_url($curURL);
-		$qsarr              = explode("&", urldecode($parse_url["query"]) );
-		array_unshift($qsarr,"lang=".$lang);
-        array_unshift($qsarr,"speaker=".$speaker);
-        array_unshift($qsarr,"accent=".$accent);
-        array_unshift($qsarr,"action=interest-thanks");
-
-        $action_url = $scheme . $parse_url["host"] . $parse_url["path"] . "?" . implode("&",$qsarr);
-		$gather 	= $response->gather(['action' => $action_url, 'numDigits' => 1]); 
+		// NEED TO START STORING VARS FOR DURATION OF THIS CALL
+		$module->setTempStorage($temp_call_storage_key , "lang", $lang );
+		$module->setTempStorage($temp_call_storage_key , "language", $rc_val );
+		$module->setTempStorage($temp_call_storage_key , "speaker", $speaker );
+		$module->setTempStorage($temp_call_storage_key , "accent", $accent );
+		$module->setTempStorage($temp_call_storage_key , "action", "interest-thanks" );
+		
+		// GATHER RESPONSE FOR NEXT CALL/RESPONSE
+		$gather 	= $response->gather(['numDigits' => 1]); 
 		if($lang == "vi"){
 			$module->emDebug("language VIetnamese play mp3");
 			$response->play($module->getAssetUrl("v_calltype.mp3"));

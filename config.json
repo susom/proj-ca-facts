@@ -48,6 +48,7 @@
 	"no-auth-pages": [
         "pages/signup-ivr",
 		"pages/signup",
+		"pages/kitsubmission",
 		"getAsset"
 	],
 

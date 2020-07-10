@@ -55,18 +55,26 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
     /**
      * Print all enabled projects with this EM
      */
-    public function displayEnabledProjects() {
+    public function displayEnabledProjects($creation_xml_array) {
         // Scan
         $this->getEnabledProjects();
         ?>
-        <table class="table table-striped table-bordered">
+        <table class="table table-striped table-bordered" style="width:100%">
             <tr>
+                <th>EM Mode</th>
                 <th>Project ID</th>
                 <th>Project Name</th>
             </tr>
             <?php
-            foreach ($this->enabledProjects as $project) {
-                echo "<tr><td><a target='_BLANK' href='" . $project['url'] . "'>" . $project['pid'] . "</a></td><td>" . $project['name'] . "</td></tr>";
+            $modes = array("access_code_db", "kit_order", "kit_submission");
+            foreach($modes as $mode){
+                $pid    = isset($this->enabledProjects[$mode]) ? "<a target='_BLANK' href='" . $this->enabledProjects[$mode]['url'] . "'>" . $this->enabledProjects[$mode]['pid'] . "</a>" : "N/A";
+                $pname  = isset($this->enabledProjects[$mode]) ?  $this->enabledProjects[$mode]['name'] : "<a href='".$creation_xml_array[$mode]."' target='_BLANK'>Create project [XML Template]</a>";
+                echo "<tr>
+                        <th>$mode</th>
+                        <th>$pid</th>
+                        <th>$pname</th>
+                    </tr>";
             }
             ?>
         </table>
@@ -83,12 +91,15 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
             $pid  = $project['project_id'];
             $name = $project['name'];
             $url  = APP_PATH_WEBROOT . 'ProjectSetup/index.php?pid=' . $project['project_id'];
-
-            $enabledProjects[$pid] = array(
+            $mode = $this->getProjectSetting("em-mode", $pid);
+            
+            $enabledProjects[$mode] = array(
                 'pid'   => $pid,
                 'name'  => $name,
-                'url'   => $url
+                'url'   => $url,
+                'mode'  => $mode
             );
+            
         }
 
         $this->enabledProjects = $enabledProjects;
@@ -102,8 +113,8 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
     public function getAllSupportProjects(){
         $this->getEnabledProjects();
         foreach($this->enabledProjects as $project){
-            $pid = $project["pid"];
-            $project_mode = $this->getProjectSetting('em-mode', $pid);
+            $pid            = $project["pid"];
+            $project_mode   = $project["mode"];
             switch($project_mode){
                 case "access_code_db":
                     $this->access_code_project = $pid;
@@ -140,6 +151,10 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
         return $valid;
     }
 
+    /**
+     * Verifies the invitation access code and marks it as used, and creates a record in the main project and returns a public survey URL 
+     * @return bool survey url link
+     */
     public function formHandler() {
         // GET ALL projects with this EM installed
         $this->getAllSupportProjects();
@@ -177,6 +192,66 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
     }
 
     /**
+     * Verifies the invitation access code and marks it as used, and creates a record in the main project with all the answers supplied via voice 
+     * @return bool survey url link
+     */
+    public function IVRHandler($call_vars) {
+        // $call_vars = array(
+        //     [lang] => en
+        //     [speaker] => Polly.Joanna
+        //     [accent] => en-US
+        //     [action] => invitation-phone
+        //     [language] => 1
+        //     [code] => 123456
+        //     [zip] => 94123
+        //     [fingerprick] => 1
+        //     [testpeople] => 3
+        //     [smartphone] => 1
+        //     [sms] => 1
+        //     [phone] => 14158469192
+        // )
+
+        $this->access_code   = $call_vars["code"];
+        $this->zip_code      = $call_vars["zip"];
+
+        // GET ALL projects with this EM installed
+        $this->getAllSupportProjects();
+
+        // Match INCOMING AccessCode Attempt and Verify ZipCode , find the record in the AC DB 
+        if (!$this->getTertProjectData("access_code_db")){
+            $this->returnError("Error, no matching AC/ZIP combination found");
+        }
+        
+        //AT THIS POINT WE HAVE THE ACCESS CODE RECORD, IT HASNT BEEN ABUSED, IT HASNT YET BEEN CLAIMED
+        //0.  GET NEXT AVAIL ID IN MAIN PROJECT
+        $next_id = $this->getNextAvailableRecordId($this->main_project);
+
+        //1.  CREATE NEW RECORD, POPULATE these 2 fields
+        $data = array(
+            "record_id" => $next_id
+        );
+        foreach($call_vars as $rc_var => $rc_val){
+            if(in_array($rc_var, array("lang","speaker","accent","action","zip"))){
+                continue;
+            }
+
+            $data[$rc_var] = $rc_val;
+        }
+        $r    = \REDCap::saveData($this->main_project, 'json', json_encode(array($data)) );
+        $this->emDebug("DID IT SAVE???", $r, $data);
+
+        //2.  UPDATE AC DB record with time stamp and "claimed" main record project
+        $data = array(
+            "record_id"             => $this->access_code_record,
+            "participant_used_id"   => $next_id,
+            "participant_used_date" => date("Y-m-d H:i:s")
+        );
+        $r    = \REDCap::saveData($this->access_code_project, 'json', json_encode(array($data)) );
+
+        return false;
+    }
+
+    /**
      * Set Temp Store Proj Settings
      * @param $key $val pare
      */
@@ -185,7 +260,7 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
         $temp[$k] = $v;
 
         // THIS IS CAUSING TWILIO TO FAIL WHY? 
-        // $this->setSystemSetting($storekey, json_encode($temp));
+        $this->setProjectSetting($storekey, json_encode($temp));
         return; 
     }
 
@@ -194,13 +269,22 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
      * @param $key $val pare
      */
     public function getTempStorage($storekey) {
-        $temp = $this->getSystemSetting($storekey);
+        $temp = $this->getProjectSetting($storekey);
         $temp = empty($temp) ? array() : json_decode($temp,1);
         return $temp;
     }
 
     /**
-     * Make a new redirect Action url
+     * rEMOVE Temp Store Proj Settings
+     * @param $key $val pare
+     */
+    public function removeTempStorage($storekey) {
+        $this->removeProjectSetting($storekey);
+        return;
+    }
+    
+    /**
+     * Make a new redirect Action url, NOT IN USE NOW, BUT COULD POSSILBY BE USEFUL LATER
      * @param $action
      */
     public function makeActionUrl($action){
@@ -251,9 +335,8 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
      * @return bool
      */
     public function getTertProjectData($p_type) {
-        foreach ($this->enabledProjects as $pid => $project_data) {
-            $project_mode   = $this->getProjectSetting('em-mode', $pid);
-            $this->emDebug("em_mode project id" ,$project_mode, $pid);
+        foreach ($this->enabledProjects as $project_mode => $project_data) {
+            $pid = $project_data["pid"];
             if($project_mode == $p_type){
                 if($p_type == "access_code_db"){
                     $filter     = "[access_code] = '" . $this->access_code . "'"; //AND [zip] = '". $this->zip_code ."'
@@ -303,7 +386,6 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
                 }
             }
         }
-
         return false;
     }
 
@@ -331,11 +413,11 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
         Pull static files from within EM dir Structure
     */
     function getAssetUrl($file){
-        $this->emDebug("sup getAssetURL");
+        // $this->emDebug("sup getAssetURL");
 
         // return "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3";
 
-        return "http://ff2e6ed49db1.ngrok.io/modules-local/proj_ca_facts_v9.9.9/docs/audio/v_calltype.mp3";
+        return "http://121fab86b0ba.ngrok.io/modules-local/proj_ca_facts_v9.9.9/docs/audio/v_calltype.mp3";
 
 	    return $this->framework->getUrl("getAsset.php?file=".$file."&ts=". $this->getLastModified() , true, true);
     }
