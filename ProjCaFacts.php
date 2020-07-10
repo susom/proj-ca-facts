@@ -161,7 +161,7 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
 
         // Match INCOMING AccessCode Attempt and Verify ZipCode , find the record in the AC DB 
         if (!$this->getTertProjectData("access_code_db")){
-            $this->emDebug("Should return error but disbaling for now", "Error, no matching AC/ZIP combination found")
+            $this->emDebug("Should return error but disbaling for now", "Error, no matching AC/ZIP combination found");
             // $this->returnError("Error, no matching AC/ZIP combination found");
         }
         
