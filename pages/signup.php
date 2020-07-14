@@ -2,6 +2,7 @@
 namespace Stanford\ProjCaFacts;
 /** @var \Stanford\ProjCaFacts\ProjCaFacts $module */
 
+header("Access-Control-Allow-Origin: ca-facts.org, staging.ca-facts.org");
 
 $module->emLog($_REQUEST, "Incoming Request - Form Post expecting Access Code + Zip Code" . " " . __DIR__);
 if (!$module->parseFormInput()) {
