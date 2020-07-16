@@ -253,27 +253,8 @@ if(isset($_POST["CallStatus"]) && $_POST["CallStatus"] == "in-progress"){
 				$module->setTempStorage($temp_call_storage_key , $rc_var, $rc_val );
 			break;
 		}
-		$module->setTempStorage($temp_call_storage_key , "action", "invitation-sms" );
-		$gather 	= $response->gather(['numDigits' => 1]); 
-		if($lang == "vi"){
-			$response->play($module->getAssetUrl("v_i_sms.mp3"));
-		}else{
-			$gather->say($dict["invitation-sms"][$lang], ['voice' => $speaker, 'language' => $accent] );
-		}
-	}elseif($action == "invitation-sms"){
-		switch($choice){
-			case 2:
-				//NO
-				$choice = 0;
-			default:
-				//1 YES
-				$rc_var = "sms" . $lang_modifier;
-				$rc_val = $choice;
-				$module->setTempStorage($temp_call_storage_key , $rc_var, $rc_val );
-			break;
-		}
 		$module->setTempStorage($temp_call_storage_key , "action", "invitation-phone" );
-		$gather 	= $response->gather(['numDigits' => 10, 'finishOnKey' => '#']); 
+		$gather 	= $response->gather(['numDigits' => 10]); 
 		if($lang == "vi"){
 			$response->play($module->getAssetUrl("v_i_phone.mp3"));
 		}else{

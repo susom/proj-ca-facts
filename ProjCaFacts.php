@@ -49,7 +49,10 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
 	        // Get the mode of the module
 	        self::$MODE = $this->getProjectSetting('em-mode');
 	        $this->emDebug("In mode " . self::$MODE);
-	    }
+        }
+        
+        // put the proper project ids into class vars
+        $this->getAllSupportProjects();
     }
 
     /**
@@ -156,10 +159,8 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
      * @return bool survey url link
      */
     public function formHandler() {
-        // GET ALL projects with this EM installed
-        $this->getAllSupportProjects();
-
         // Match INCOMING AccessCode Attempt and Verify ZipCode , find the record in the AC DB 
+        $address_data = $this->getTertProjectData("access_code_db");
         if (!$this->getTertProjectData("access_code_db")){
             $this->emDebug("Should return error but disbaling for now", "Error, no matching AC/ZIP combination found");
             // $this->returnError("Error, no matching AC/ZIP combination found");
@@ -174,6 +175,14 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
             "record_id" => $next_id,
             "code"      => $this->access_code
         );
+        if($address_data){
+            foreach($address_data as $k => $v){
+                if(in_array($k, array("record_id","participant_used_id","participant_used_date","usage_attempts","ca_facts_access_codes_complete"))){
+                    continue;
+                }
+                $data[$k] = $v;
+            }
+        }
         $r    = \REDCap::saveData($this->main_project, 'json', json_encode(array($data)) );
 
         //2.  UPDATE AC DB record with time stamp and "claimed" main record project
@@ -215,10 +224,8 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
         $this->access_code   = $call_vars["code"];
         $this->zip_code      = $call_vars["zip"];
 
-        // GET ALL projects with this EM installed
-        $this->getAllSupportProjects();
-
         // Match INCOMING AccessCode Attempt and Verify ZipCode , find the record in the AC DB 
+        $address_data = $this->getTertProjectData("access_code_db");
         if (!$this->getTertProjectData("access_code_db")){
             $this->returnError("Error, no matching AC/ZIP combination found");
         }
@@ -235,8 +242,15 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
             if(in_array($rc_var, array("lang","speaker","accent","action","zip"))){
                 continue;
             }
-
             $data[$rc_var] = $rc_val;
+        }
+        if($address_data){
+            foreach($address_data as $k => $v){
+                if(in_array($k, array("record_id","participant_used_id","participant_used_date","usage_attempts","ca_facts_access_codes_complete"))){
+                    continue;
+                }
+                $data[$k] = $v;
+            }
         }
         $r    = \REDCap::saveData($this->main_project, 'json', json_encode(array($data)) );
         $this->emDebug("DID IT SAVE???", $r, $data);
@@ -250,6 +264,111 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
         $r    = \REDCap::saveData($this->access_code_project, 'json', json_encode(array($data)) );
 
         return false;
+    }
+
+    /**
+     * Processes the KIT submission from the QR
+     * @return bool survey url link
+     */
+    public function KitSubmitHandler($call_vars) {
+
+        // Match INCOMING AccessCode Attempt and Verify ZipCode , find the record in the AC DB 
+        if (!$this->getTertProjectData("kit_submission")){
+            $this->returnError("Error, no matching household id found");
+        }
+        
+        //AT THIS POINT WE HAVE THE ACCESS CODE RECORD, IT HASNT BEEN ABUSED, IT HASNT YET BEEN CLAIMED
+        //0.  GET NEXT AVAIL ID IN MAIN PROJECT
+        $next_id = $this->getNextAvailableRecordId($this->kit_submission_project);
+
+        //1.  CREATE NEW RECORD, POPULATE these 2 fields
+        $data = array(
+            "record_id" => $next_id
+        );
+        foreach($call_vars as $rc_var => $rc_val){
+            if(in_array($rc_var, array("lang","speaker","accent","action","zip"))){
+                continue;
+            }
+
+            $data[$rc_var] = $rc_val;
+        }
+        $r    = \REDCap::saveData($this->kit_submission_project, 'json', json_encode(array($data)) );
+        $this->emDebug("DID IT SAVE???", $r, $data);
+
+        //2.  UPDATE AC DB record with time stamp and "claimed" main record project
+        $data = array(
+            "record_id"             => $this->access_code_record,
+            "participant_used_id"   => $next_id,
+            "participant_used_date" => date("Y-m-d H:i:s")
+        );
+        $r    = \REDCap::saveData($this->access_code_project, 'json', json_encode(array($data)) );
+
+        return false;
+    }
+
+    /**
+     * Get records of completed invitation questionaires that have not had kits shipped yet
+     * @return array of records
+     */
+    public function getPendingInvites(){
+        $fields     = array("record_id","testpeople", "code", "address_1" ,"address_2","city", "state", "zip");
+        $filter     = "[code] != '' AND [kit_household_code] = '' AND [testpeople] <> ''";
+        $q          = \REDCap::getData('json', null , $fields  , null, null, false, false, false, $filter);
+        $results    = json_decode($q,true);
+        return $results;
+    }
+
+    /**
+     * Once household_id is obtained, need to pregenerate records in kit_submission project
+     * @return array of recordids created
+     */
+    public function linkKits($main_record_id, $number_of_kits, $household_id){
+        $new_ids = array();
+        for ($i =0 ; $i < $number_of_kits; $i++){
+            $next_id = $this->getNextAvailableRecordId($this->kit_submission_project);
+           
+            // SAVE TO REDCAP
+            $data   = array(
+                "record_id"             => $next_id,
+                "household_record_id"   => $main_record_id,
+                "participant_id"        => $main_record_id,
+                "household_id"          => $household_id
+            );
+            $r = \REDCap::saveData($this->kit_submission_project, 'json', json_encode(array($data)) );
+        }
+        return $new_ids;
+    }  
+    /**
+     * Takes the result of a scan and sends off to Gauss to return ID
+     * @return varchar unique house hold id
+     */
+
+    public function getHouseHoldId($qrscan){
+        $url        = "https://c19.gauss.com/artemis/decryptqr";
+        $key        = "hRDauDM9We2B3YfQSMzRA7WowaHaOhv98b54LStQ";
+        $headers    = array( "x-api-key: " . $key );
+        $data       = "encrypted_qrcode_data=$qrscan";
+
+        try {
+            // $resp = requests.post(url, data = data, headers = headers)
+            $process = curl_init($url);
+            curl_setopt($process, CURLOPT_TIMEOUT, 30);
+            curl_setopt($process, CURLOPT_RETURNTRANSFER, TRUE);
+            curl_setopt($process, CURLOPT_SSL_VERIFYPEER, FALSE);
+            curl_setopt($process, CURLOPT_HTTPHEADER, $headers );
+            curl_setopt($process, CURLOPT_POSTFIELDS, $data);
+            
+            $curlinfo   = curl_getinfo($process);
+            $curlerror  = curl_error($process);
+            $result     = curl_exec($process);
+            curl_close($process);
+            
+        } catch (Exception $e) {
+            exit( 'Decrypt API request failed: ' . $e->getMessage() );
+        }
+
+        $j = json_decode($result,1);
+        return array("survey_id" => $j['survey_id'] , "household_id" => $j['household_id']);
     }
 
     /**
@@ -374,7 +493,7 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
                             $this->emDebug("Found a matching AC/ZIP for: ", $this->access_code, $this->zip_code);
                             $this->access_code_record   = $ac_code_record;
                             $this->access_code_project  = $pid;
-                            return true;
+                            return $result;
                         }
                     }
 
