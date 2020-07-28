@@ -38,7 +38,7 @@ if(!empty($_POST["action"])){
                 $q          = \REDCap::getData('json', array($record_id) , $fields);
                 $results    = json_decode($q,true);
             }
-            $result = array("what" => $results);
+            $result = array("address" => $results);
         break;
 
         default:
@@ -50,9 +50,28 @@ if(!empty($_POST["action"])){
 }
 
 require_once APP_PATH_DOCROOT . 'ProjectGeneral/header.php';
-?>
 
-<div style='margin:20px;'>
+$pdf_printlabel_url = $module->getUrl("pages/printLabel.php");
+
+$em_mode = $module->getProjectSetting("em-mode");
+if($em_mode != "kit_order"){
+    ?>
+<div style='margin:20px 0;'>
+    <h4>Pending Invitations Report</h4>
+    <p>Please open this report in the Main Project (kit_order).</p>
+
+    <br>
+    <br>
+
+    <h4>Enabled Projects (3 Required)</h4>
+    <div>
+        <?php echo $module->displayEnabledProjects(array("access_code_db" => $XML_AC_PROJECT_TEMPLATE, "kit_order" => $XML_KO_PROJECT_TEMPLATE, "kit_submission" => $XML_KS_PROJECT_TEMPLATE)  ) ?>
+    </div>
+</div>
+    <?php
+}else{
+?>
+<div style='margin:20px 40px 0 0;'>
     <h4>Pending Invitations Report</h4>
     <p>Report of all complete invitation questionaires that require shipping</p>
     <p>Report Logic :
@@ -138,7 +157,7 @@ require_once APP_PATH_DOCROOT . 'ProjectGeneral/header.php';
             display: block;
         }
     </style>
-    <table class="table table-bordered" width="100%">
+    <table class="table table-bordered">
         <thead>
         <tr class='table-info'>
         <th>Record Id</th>
@@ -208,8 +227,14 @@ require_once APP_PATH_DOCROOT . 'ProjectGeneral/header.php';
                     },
                     dataType: 'json'
                 }).done(function (result) {
-                    console.log(result);
-                    alert("print a label");
+
+                    var pdf_url = '<?= $pdf_printlabel_url ?>' + "&" + $.param(result["address"][0]);
+                    var w = 600;
+                    var h = 300;
+                    var left = Number((screen.width/2)-(w/2));
+                    var tops = Number((screen.height/2)-(h/2));
+			        var pu = window.open(pdf_url, '', 'toolbar=no, location=no, directories=no, status=no, menubar=no, scrollbars=no, resizable=1, copyhistory=no, width='+w+', height='+h+', top='+tops+', left='+left);
+                    pu.focus();
                 }).fail(function () {
                     console.log("something failed");
                 });
@@ -217,3 +242,4 @@ require_once APP_PATH_DOCROOT . 'ProjectGeneral/header.php';
         });
     </script>
 </div>
+<? } ?>

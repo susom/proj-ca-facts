@@ -9,7 +9,7 @@ $XML_AC_PROJECT_TEMPLATE = $module->getUrl("docs/CAFACTSACCESSDBTEST_2020-06-10_
 $XML_KO_PROJECT_TEMPLATE = $module->getUrl("docs/CAFACTSMAINPROJECTKi_2020-06-23_1523.REDCap.xml");
 $XML_KS_PROJECT_TEMPLATE = $module->getUrl("docs/CAFACTSKITSUBMISSION_2020-06-23_1523.REDCap.xml");
 ?>
-<div style='margin:20px;'>
+<div style='margin:20px 0;'>
 
 	<h3>CA-FACTS Project EM Requirements</h3>
 	<p>This EM will coordinate between <b>3 REDcap projects</b> to intake and track conversions of direct mail invitations for participation in home COVID testing.</p>

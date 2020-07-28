@@ -80,7 +80,7 @@ if(isset($_POST["CallStatus"]) && $_POST["CallStatus"] == "ringing"){
 		// use the <Say> verb to request input from the user
 		if($lang == "vi"){
 			$module->emDebug("language VIetnamese play mp3", $module->getAssetUrl("v_languageselect.mp3"));
-			$response->play($module->getAssetUrl("v_languageselect.mp3"));
+			$gather->play($module->getAssetUrl("v_languageselect.mp3"));
 		}else{
 			$gather->say($prompt, ['voice' => $speaker, 'language' => $accent] );
 		}
@@ -102,7 +102,7 @@ if(isset($_POST["CallStatus"]) && $_POST["CallStatus"] == "in-progress"){
 				$module->setTempStorage($temp_call_storage_key , "action", "questions-haveAC" );
 				$gather 	= $response->gather(['numDigits' => 6, 'finishOnKey' => '#']); 
 				if($lang == "vi"){
-					$response->play($module->getAssetUrl("v_q_haveAC.mp3"));
+					$gather->play($module->getAssetUrl("v_q_haveAC.mp3"));
 				}else{
 					$gather->say($dict["questions-haveAC"][$lang], ['voice' => $speaker, 'language' => $accent] );
 				}
@@ -113,7 +113,7 @@ if(isset($_POST["CallStatus"]) && $_POST["CallStatus"] == "in-progress"){
 				$module->setTempStorage($temp_call_storage_key , "action", "invitation-code" );
 				$gather 	= $response->gather(['numDigits' => 6]); 
 				if($lang == "vi"){
-					$response->play($module->getAssetUrl("v_i_code.mp3"));
+					$gather->play($module->getAssetUrl("v_i_code.mp3"));
 				}else{
 					$gather->say($dict["invitation-code"][$lang], ['voice' => $speaker, 'language' => $accent] );
 				}
@@ -124,7 +124,7 @@ if(isset($_POST["CallStatus"]) && $_POST["CallStatus"] == "in-progress"){
 			case 0:
 				// NO ACCESS CODE, ASK THEM TO LEAVE A VM WITH CONTACTS
 				if($lang == "vi"){
-					$response->play($module->getAssetUrl("v_q_leaveinfo.mp3"));
+					$gather->play($module->getAssetUrl("v_q_leaveinfo.mp3"));
 				}else{
 					$response->say($dict["questions-leaveInfo"][$lang], ['voice' => $speaker, 'language' => $accent]);
 				}
@@ -144,7 +144,7 @@ if(isset($_POST["CallStatus"]) && $_POST["CallStatus"] == "in-progress"){
 				$module->setTempStorage($temp_call_storage_key , "action", "invitation-zip" );
 				$gather 	= $response->gather(['numDigits' => 5]); 
 				if($lang == "vi"){
-					$response->play($module->getAssetUrl("v_i_zip.mp3"));
+					$gather->play($module->getAssetUrl("v_i_zip.mp3"));
 				}else{
 					$gather->say($dict["invitation-zip"][$lang], ['voice' => $speaker, 'language' => $accent] );
 				}	
@@ -159,7 +159,7 @@ if(isset($_POST["CallStatus"]) && $_POST["CallStatus"] == "in-progress"){
 		$module->emDebug("THE RECORDING VM???", $_POST["RecordingUrl"]);
 		$response->pause(['length' => 1]);
 		if($lang == "vi"){
-			$response->play($module->getAssetUrl("v_q_thanks.mp3"));
+			$gather->play($module->getAssetUrl("v_q_thanks.mp3"));
 		}else{
 			$response->say($dict["questions-thanks"][$lang], ['voice' => $speaker, 'language' => $accent] );
 		}
@@ -171,7 +171,7 @@ if(isset($_POST["CallStatus"]) && $_POST["CallStatus"] == "in-progress"){
 		$module->setTempStorage($temp_call_storage_key , "action", "invitation-zip" );
 		$gather 	= $response->gather(['numDigits' => 5]); 
 		if($lang == "vi"){
-			$response->play($module->getAssetUrl("v_i_zip.mp3"));
+			$gather->play($module->getAssetUrl("v_i_zip.mp3"));
 		}else{
 			$gather->say($dict["invitation-zip"][$lang], ['voice' => $speaker, 'language' => $accent] );
 		}
@@ -183,7 +183,7 @@ if(isset($_POST["CallStatus"]) && $_POST["CallStatus"] == "in-progress"){
 		$module->setTempStorage($temp_call_storage_key , "action", "invitation-finger" );
 		$gather 	= $response->gather(['numDigits' => 1]); 
 		if($lang == "vi"){
-			$response->play($module->getAssetUrl("v_i_finger.mp3"));
+			$gather->play($module->getAssetUrl("v_i_finger.mp3"));
 		}else{
 			$gather->say($dict["invitation-finger"][$lang], ['voice' => $speaker, 'language' => $accent] );
 		}
@@ -192,7 +192,7 @@ if(isset($_POST["CallStatus"]) && $_POST["CallStatus"] == "in-progress"){
 			case 2:
 				//NO
 				if($lang == "vi"){
-					$response->play($module->getAssetUrl("v_i_nofinger.mp3"));
+					$gather->play($module->getAssetUrl("v_i_nofinger.mp3"));
 				}else{
 					$response->say($dict["invitation-nofinger"][$lang], ['voice' => $speaker, 'language' => $accent] );
 				}
@@ -207,7 +207,7 @@ if(isset($_POST["CallStatus"]) && $_POST["CallStatus"] == "in-progress"){
 				$module->setTempStorage($temp_call_storage_key , "action", "invitation-testpeople" );
 				$gather 	= $response->gather(['numDigits' => 1]); 
 				if($lang == "vi"){
-					$response->play($module->getAssetUrl("v_i_testpeople.mp3"));
+					$gather->play($module->getAssetUrl("v_i_testpeople.mp3"));
 				}else{
 					$gather->say($dict["invitation-testpeople"][$lang], ['voice' => $speaker, 'language' => $accent] );
 				}
@@ -228,7 +228,7 @@ if(isset($_POST["CallStatus"]) && $_POST["CallStatus"] == "in-progress"){
 				$module->setTempStorage($temp_call_storage_key , "action", "invitation-testpeople" );
 				$gather 	= $response->gather(['numDigits' => 1]); 
 				if($lang == "vi"){
-					$response->play($module->getAssetUrl("v_i_testpeople.mp3"));
+					$gather->play($module->getAssetUrl("v_i_testpeople.mp3"));
 				}else{
 					$gather->say($dict["invitation-testpeople"][$lang], ['voice' => $speaker, 'language' => $accent] );
 				}
@@ -237,7 +237,7 @@ if(isset($_POST["CallStatus"]) && $_POST["CallStatus"] == "in-progress"){
 		$module->setTempStorage($temp_call_storage_key , "action", "invitation-smartphone" );
 		$gather 	= $response->gather(['numDigits' => 1]); 
 		if($lang == "vi"){
-			$response->play($module->getAssetUrl("v_i_smartphone.mp3"));
+			$gather->play($module->getAssetUrl("v_i_smartphone.mp3"));
 		}else{
 			$gather->say($dict["invitation-smartphone"][$lang], ['voice' => $speaker, 'language' => $accent] );
 		}
@@ -256,7 +256,7 @@ if(isset($_POST["CallStatus"]) && $_POST["CallStatus"] == "in-progress"){
 		$module->setTempStorage($temp_call_storage_key , "action", "invitation-phone" );
 		$gather 	= $response->gather(['numDigits' => 10]); 
 		if($lang == "vi"){
-			$response->play($module->getAssetUrl("v_i_phone.mp3"));
+			$gather->play($module->getAssetUrl("v_i_phone.mp3"));
 		}else{
 			$gather->say($dict["invitation-phone"][$lang], ['voice' => $speaker, 'language' => $accent] );
 		}
@@ -324,7 +324,7 @@ if(isset($_POST["CallStatus"]) && $_POST["CallStatus"] == "in-progress"){
 		$gather 	= $response->gather(['numDigits' => 1]); 
 		if($lang == "vi"){
 			$module->emDebug("language VIetnamese play mp3");
-			$response->play($module->getAssetUrl("v_calltype.mp3"));
+			$gather->play($module->getAssetUrl("v_calltype.mp3"));
 		}else{
 			$gather->say($dict["call-type"][$lang], ['voice' => $speaker, 'language' => $accent] );
 		}

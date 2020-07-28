@@ -9,6 +9,9 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
     // Fields in ACCESS CODE Project
     const FIELD_ACCESS_CODE         = 'access_code';
     const FIELD_ZIP                 = 'zip';
+    const HOUSEHOLD_ID              = 'household_id';
+    const QR_INPUT                  = 'qr_input';
+    const TESTKIT_NUMBER            = 'testkit_number';
     const FIELD_USED_ID             = 'participant_used_id';
     const FIELD_USED_DATE           = 'participant_used_date';
     const FIELD_USAGE_ATTEMPTS      = 'usage_attempts';
@@ -31,6 +34,8 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
 
     private   $access_code
             , $zip_code
+            , $household_id
+            , $testkit_number
             , $enabledProjects
             , $main_project_record
             , $main_project
@@ -267,45 +272,69 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
     }
 
     /**
+     * Parses request and sets up object
+     * @return bool request valid
+     */
+    public function parseKitQRInput() {
+        if (empty($_POST)){
+            $_POST = json_decode(file_get_contents('php://input'), true);
+        }
+        $this->household_id     = isset($_POST[self::HOUSEHOLD_ID])     ? strtoupper(trim(filter_var($_POST[self::HOUSEHOLD_ID], FILTER_SANITIZE_STRING))) : NULL ;
+        $this->testkit_number   = isset($_POST[self::TESTKIT_NUMBER])   ? trim(filter_var($_POST[self::TESTKIT_NUMBER], FILTER_SANITIZE_NUMBER_INT)) : NULL ;
+        $this->qr_input         = isset($_POST[self::QR_INPUT])         ? trim(filter_var($_POST[self::QR_INPUT], FILTER_SANITIZE_STRING)) : NULL ;
+        $valid                  = (is_null($this->household_id) || is_null($this->testkit_number)) ? false : true;
+        $this->emDebug($valid);
+
+        return $valid;
+    }
+
+    /**
      * Processes the KIT submission from the QR
      * @return bool survey url link
      */
-    public function KitSubmitHandler($call_vars) {
+    public function KitSubmitHandler() {
+        $instrument = 'cafacts_surveys';
 
-        // Match INCOMING AccessCode Attempt and Verify ZipCode , find the record in the AC DB 
-        if (!$this->getTertProjectData("kit_submission")){
+        // Match INCOMING HOUSEHOLD ID + TEST KIT #
+        $kit_submit_record_id = $this->getTertProjectData("kit_submission");
+        if (!$kit_submit_record_id){
             $this->returnError("Error, no matching household id found");
         }
         
-        //AT THIS POINT WE HAVE THE ACCESS CODE RECORD, IT HASNT BEEN ABUSED, IT HASNT YET BEEN CLAIMED
-        //0.  GET NEXT AVAIL ID IN MAIN PROJECT
-        $next_id = $this->getNextAvailableRecordId($this->kit_submission_project);
+        // AT THIS POINT WE SHOULD HAVE THE RECORD_ID OF THE KITSUBMISSION THAT MATCHES THE INPUT
 
-        //1.  CREATE NEW RECORD, POPULATE these 2 fields
+        //SAVE THE QR INPUT FOR THIS TO USE LATER FOR INHOUSE MATCHING
         $data = array(
-            "record_id" => $next_id
+            "record_id"              => $kit_submit_record_id,
+            "kit_qr_input"           => $this->qr_input 
         );
-        foreach($call_vars as $rc_var => $rc_val){
-            if(in_array($rc_var, array("lang","speaker","accent","action","zip"))){
-                continue;
-            }
-
-            $data[$rc_var] = $rc_val;
-        }
         $r    = \REDCap::saveData($this->kit_submission_project, 'json', json_encode(array($data)) );
-        $this->emDebug("DID IT SAVE???", $r, $data);
 
-        //2.  UPDATE AC DB record with time stamp and "claimed" main record project
-        $data = array(
-            "record_id"             => $this->access_code_record,
-            "participant_used_id"   => $next_id,
-            "participant_used_date" => date("Y-m-d H:i:s")
-        );
-        $r    = \REDCap::saveData($this->access_code_project, 'json', json_encode(array($data)) );
+        //GET PUBLIC SURVEY URL FOR THAT RECORD TO SEND BACK TO GAUSS TO DISPLAY TO THE USER
+        $survey_link = \REDCap::getSurveyLink($kit_submit_record_id, $instrument, $event_id='', $instance=1, $project_id=$this->kit_submission_project);
+
+        // Return result
+        header("Content-type: application/json");
+        echo json_encode(array("survey_url" => $survey_link));
+    }
+
+    /**
+     * GET the KIT submission Record
+     * @return bool record_id
+     */
+    public function getKitSubmissionId($qrscan) {
+        $filter     = "[kit_qr_input] = '" . $qrscan . "'";
+        $q          = \REDCap::getData('json', null , null  , null, null, false, false, false, $filter);
+        $results    = json_decode($q,true);
+
+        foreach ($results as $result) {
+            $record_id = $result["record_id"];
+            return $record_id;
+        }
 
         return false;
     }
-
+    
     /**
      * Get records of completed invitation questionaires that have not had kits shipped yet
      * @return array of records
@@ -324,14 +353,14 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
      */
     public function linkKits($main_record_id, $number_of_kits, $household_id){
         $new_ids = array();
-        for ($i =0 ; $i < $number_of_kits; $i++){
+        for ($i =1 ; $i == $number_of_kits; $i++){
             $next_id = $this->getNextAvailableRecordId($this->kit_submission_project);
            
             // SAVE TO REDCAP
             $data   = array(
                 "record_id"             => $next_id,
                 "household_record_id"   => $main_record_id,
-                "participant_id"        => $main_record_id,
+                "participant_id"        => $i,
                 "household_id"          => $household_id
             );
             $r = \REDCap::saveData($this->kit_submission_project, 'json', json_encode(array($data)) );
@@ -369,6 +398,73 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
 
         $j = json_decode($result,1);
         return array("survey_id" => $j['survey_id'] , "household_id" => $j['household_id']);
+    }
+
+     /**
+     * GET DATA FROM PROJECT DATA TIED TO THIS EM
+     * @return bool
+     */
+    public function getTertProjectData($p_type) {
+        foreach ($this->enabledProjects as $project_mode => $project_data) {
+            $pid = $project_data["pid"];
+            if($project_mode == $p_type){
+                if($p_type == "access_code_db"){
+                    $filter     = "[access_code] = '" . $this->access_code . "'"; //AND [zip] = '". $this->zip_code ."'
+                    $q          = \REDCap::getData($pid, 'json', null , null  , null, null, false, false, false, $filter);
+                    $results    = json_decode($q,true);
+
+                    foreach ($results as $result) {
+                        $ac_code_record             = $result["record_id"];
+                        $current_attempt            = $result["usage_attempts"] ?? 0;
+                        $redeemed_participant_id    = $result["participant_used_id"];
+                        $redeemed_participant_date  = $result["participant_used_date"];
+
+
+                        // LIMIT ATTEMPTS
+                        if($current_attempt > 5 && 1==2){
+                            $this->emDebug("Too many attempts to redeem this Access Code.", $this->access_code, $this->zip_code);
+                            return false;
+                        }
+
+                        //INCREMENT USAGE ATTEMPTS
+                        $data   = array(
+                            "record_id"      => $ac_code_record,
+                            "usage_attempts" => $current_attempt + 1
+                        );
+                        $r      = \REDCap::saveData($pid, 'json', json_encode(array($data)) );
+
+                        //VERIFIY THAT THE CODE USED MATCHES ZIPCODE OF ADDRESS FOR IT
+                        if($result['zip'] == $this->zip_code){
+                            if(!empty($redeemed_participant_id) && !empty($redeemed_participant_date)){
+                                $this->emDebug("This Access Code has already been claimed on ", $this->redeemed_participant_date);
+                                return false;
+                            }
+
+                            $this->emDebug("Found a matching AC/ZIP for: ", $this->access_code, $this->zip_code);
+                            $this->access_code_record   = $ac_code_record;
+                            $this->access_code_project  = $pid;
+                            return $result;
+                        }
+                    }
+
+                    $this->emDebug("No match found for in Access Code DB for : ", $this->access_code );
+                }
+
+                if($p_type == "kit_submission"){
+                    $filter     = "[household_id] = '" . $this->household_id . "' AND [participant_id] = '". $this->testkit_number ."'";
+                    $q          = \REDCap::getData($pid, 'json', null , null  , null, null, false, false, false, $filter);
+                    $results    = json_decode($q,true);
+
+                    foreach ($results as $result) {
+                        $record_id = $result["record_id"];
+                        return $record_id;
+                    }
+                    
+                    $this->emDebug("No match found for in HouseHold Id : ", $this->household_id );
+                }
+            }
+        }
+        return false;
     }
 
     /**
@@ -451,65 +547,6 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
     }
 
     /**
-     * GET DATA FROM PROJECT DATA TIED TO THIS EM
-     * @return bool
-     */
-    public function getTertProjectData($p_type) {
-        foreach ($this->enabledProjects as $project_mode => $project_data) {
-            $pid = $project_data["pid"];
-            if($project_mode == $p_type){
-                if($p_type == "access_code_db"){
-                    $filter     = "[access_code] = '" . $this->access_code . "'"; //AND [zip] = '". $this->zip_code ."'
-                    $q          = \REDCap::getData($pid, 'json', null , null  , null, null, false, false, false, $filter);
-                    $results    = json_decode($q,true);
-
-                    foreach ($results as $result) {
-                        $ac_code_record             = $result["record_id"];
-                        $current_attempt            = $result["usage_attempts"] ?? 0;
-                        $redeemed_participant_id    = $result["participant_used_id"];
-                        $redeemed_participant_date  = $result["participant_used_date"];
-
-
-                        // LIMIT ATTEMPTS
-                        if($current_attempt > 5 && 1==2){
-                            $this->emDebug("Too many attempts to redeem this Access Code.", $this->access_code, $this->zip_code);
-                            return false;
-                        }
-
-                        //INCREMENT USAGE ATTEMPTS
-                        $data   = array(
-                            "record_id"      => $ac_code_record,
-                            "usage_attempts" => $current_attempt + 1
-                        );
-                        $r      = \REDCap::saveData($pid, 'json', json_encode(array($data)) );
-
-                        //VERIFIY THAT THE CODE USED MATCHES ZIPCODE OF ADDRESS FOR IT
-                        if($result['zip'] == $this->zip_code){
-                            if(!empty($redeemed_participant_id) && !empty($redeemed_participant_date)){
-                                $this->emDebug("This Access Code has already been claimed on ", $this->redeemed_participant_date);
-                                return false;
-                            }
-
-                            $this->emDebug("Found a matching AC/ZIP for: ", $this->access_code, $this->zip_code);
-                            $this->access_code_record   = $ac_code_record;
-                            $this->access_code_project  = $pid;
-                            return $result;
-                        }
-                    }
-
-                    $this->emDebug("No match found for in Access Code DB for : ", $this->access_code );
-                }
-
-                if($p_type == "kit_submission"){
-                    //TODO
-                    return true;
-                }
-            }
-        }
-        return false;
-    }
-
-    /**
      * GET Next available RecordId in a project
      * @return bool
      */
@@ -532,14 +569,12 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
     /*
         Pull static files from within EM dir Structure
     */
-    function getAssetUrl($file){
+    function getAssetUrl($audiofile = "v_languageselect.mp3", $hard_domain = "http://3f3ac33e69f7.ngrok.io"){
         // $this->emDebug("sup getAssetURL");
 
-        // return "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3";
+        return $hard_domain . "/modules-local/proj_ca_facts_v9.9.9/docs/audio/" . $audiofile;
 
-        return "http://121fab86b0ba.ngrok.io/modules-local/proj_ca_facts_v9.9.9/docs/audio/v_calltype.mp3";
-
-	    return $this->framework->getUrl("getAsset.php?file=".$file."&ts=". $this->getLastModified() , true, true);
+	    // return $this->framework->getUrl("getAsset.php?file=".$file."&ts=". $this->getLastModified() , true, true);
     }
     
     function setLastModified(){

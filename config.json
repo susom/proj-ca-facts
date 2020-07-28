@@ -39,7 +39,13 @@
 	        "name": "CA-FACTS Pending Invites Report",
 	        "icon": "gear",
 	        "url": "pages/pending_invites.php"
+		  },
+		  {
+	        "name": "CA-FACTS Test Kit / UPC Linkage",
+	        "icon": "gear",
+	        "url": "pages/link_kit_upc.php"
 	      }
+		  
 		],
 		"control-center": [
 	      {
