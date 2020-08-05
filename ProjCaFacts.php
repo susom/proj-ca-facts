@@ -11,7 +11,7 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
     const FIELD_ZIP                 = 'zip';
     const HOUSEHOLD_ID              = 'household_id';
     const QR_INPUT                  = 'qr_input';
-    const TESTKIT_NUMBER            = 'testkit_number';
+    const TESTKIT_NUMBER            = 'participant_id';
     const FIELD_USED_ID             = 'participant_used_id';
     const FIELD_USED_DATE           = 'participant_used_date';
     const FIELD_USAGE_ATTEMPTS      = 'usage_attempts';
