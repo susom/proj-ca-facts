@@ -7,4 +7,7 @@ $baseDir = dirname($vendorDir);
 
 return array(
     'Twilio\\' => array($vendorDir . '/twilio/sdk/src/Twilio'),
+    'Svg\\' => array($vendorDir . '/phenx/php-svg-lib/src/Svg'),
+    'FontLib\\' => array($vendorDir . '/phenx/php-font-lib/src/FontLib'),
+    'Dompdf\\' => array($vendorDir . '/dompdf/dompdf/src'),
 );
