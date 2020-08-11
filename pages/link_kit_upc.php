@@ -273,5 +273,5 @@ if($em_mode != "kit_submission"){
         });
     </script>
 </div>
-<? } ?>
+<?php } ?>
 

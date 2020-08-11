@@ -242,4 +242,4 @@ if($em_mode != "kit_order"){
         });
     </script>
 </div>
-<? } ?>
+<?php } ?>
