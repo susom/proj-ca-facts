@@ -185,9 +185,12 @@ if($em_mode != "kit_submission"){
     </section>
 
     <br><br>
+    <hr>
+    <br><br>
+
     <a href="<?=$link_kit_upc?>" id="reset_link_upc" type="button" class="btn btn-lg btn-primary">Scan/Link a new Test Kit</a>
 
-
+    <br><br><br><br><br><br>
     <br><br><br><br><br><br>
 
     <textarea>artemis.gauss.com?c=110f18709d39b9e683916de0dd5f9b283a2835bcef332d4ece5ca2e7af43f9b0f1af5a7e6c2081175fef333dbf506337298677dc5c8a7cd642f16ed8c43dadd890e359491d207f18ff8f2bd9b79c81082a9609d30380983</textarea>
@@ -214,6 +217,7 @@ if($em_mode != "kit_submission"){
 
                     if(result["error"]){
                         _el.css("color","red");
+                        _el.val("");
                         _el.focus();
                         $(".upcscan").removeClass("loading");
                         return;
@@ -235,6 +239,8 @@ if($em_mode != "kit_submission"){
                 }).fail(function () {
                     console.log("something failed");
                     _el.css("color","red");
+                    _el.val("");
+                    _el.attr("placeholder","No Match, Scan Again");
                     _el.focus();
                 });
             });
@@ -261,15 +267,24 @@ if($em_mode != "kit_submission"){
                         $(".upcscan").removeClass("link_loading");
                         $(".upcscan").addClass("link_loaded");
                         $(".upcscan h6").addClass("step_used");
+
+                        setTimeout(function(){
+                            location.reload();
+                        },250);
                     },1000);
                     
 
                 }).fail(function () {
                     console.log("something failed");
                     _el.css("color","red");
+                    _el.val("");
+                    _el.attr("placeholder","Error, Scan Again");
                     _el.focus();
                 });
             });
+
+            //be here when the page loads
+            $("input[name='kit_qr_code']").focus();
         });
     </script>
 </div>
