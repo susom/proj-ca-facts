@@ -1,4 +1,5 @@
 <?php
+namespace Stanford\ProjCaFacts;
 /** @var \Stanford\ProjCaFacts\ProjCaFacts $module */
 
 // Cache Time in Seconds
@@ -62,8 +63,7 @@ if( strpos($checkpath, $storagePath."/docs") === 0 && file_exists($filepath) && 
     header('HTTP/1.1 200 OK', true, 200);
     header('Cache-Control: max-age='.$cache_age.', public');
     header('Content-Type:  ' . $content_type);
-
-    header('Content-Disposition: attachment; filename="' . $file . '"');
+    // header('Content-Disposition: attachment; filename="' . $file . '"');
     header('Content-Length: ' . sprintf("%u", filesize($filepath)));
 
     header_remove("Pragma");
@@ -75,5 +75,5 @@ if( strpos($checkpath, $storagePath."/docs") === 0 && file_exists($filepath) && 
 }
 
 $module->emDebug("Inside getAsset.php:");
-
-// exit;
+exit();
+?>

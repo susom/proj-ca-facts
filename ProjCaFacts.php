@@ -569,12 +569,12 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
     /*
         Pull static files from within EM dir Structure
     */
-    function getAssetUrl($audiofile = "v_languageselect.mp3", $hard_domain = "http://3f3ac33e69f7.ngrok.io"){
-        // $this->emDebug("sup getAssetURL");
+    function getAssetUrl($audiofile = "v_languageselect.mp3", $hard_domain = "http://6f28a03af000.ngrok.io"){
+        $audio_file = $this->framework->getUrl("getAsset.php?file=".$audiofile."&ts=". $this->getLastModified() , true, true);
+        // $audio_file = str_replace("http://localhost",$hard_domain, $audio_file);
 
-        return $hard_domain . "/modules-local/proj_ca_facts_v9.9.9/docs/audio/" . $audiofile;
-
-	    // return $this->framework->getUrl("getAsset.php?file=".$file."&ts=". $this->getLastModified() , true, true);
+        $this->emDebug("The NO AUTH URL FOR AUDIO FILE", $audio_file); 
+        return $audio_file;
     }
     
     function setLastModified(){
@@ -584,7 +584,7 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
     }
 
     function getLastModified(){
-        return 123456;
+        return time();
 
         if(empty($this->LAST_MODIFIED)){
 	        $ts = $this->getSystemSetting("last_modified");
@@ -609,3 +609,4 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
         exit();
     }
 }
+?>
