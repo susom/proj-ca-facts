@@ -761,7 +761,10 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
             fclose($file);
         }
         
-        $data = array();
+
+        $main_data_buffer   = array();
+        $main_data_update   = array();
+        $kit_data_update    = array();
         foreach($results as $result){
             $upc            = $result[0];
             $test_result    = $result[1];
@@ -772,23 +775,62 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
             $fields     = array("household_record_id","household_id","participant_id","record_id");
             $q          = \REDCap::getData($this->kit_submission_project, 'json', null , $fields  , null, null, false, false, false, $filter);
             $results    = json_decode($q,true);
-            $result     = current($results);
+            if(!empty($results)){
+                $result         = current($results);
 
-            $ks_record_id   = $result["record_id"];
-            $main_id        = $result["household_record_id"];
-            $part_id        = $result["participant_id"];
-            $household_id   = $result["household_id"];
-            
-            //UPDATE the [test_result] in Kit_submission record
-            $data[] = array(
-                "record_id"     => $ks_record_id,
-                "test_result"   => $test_result
-            );
-            
-            // UPDATE the date completed in the main project
-            
+                $kit_sub_id     = $result["record_id"];
+                $main_id        = $result["household_record_id"];
+                $part_id        = $result["participant_id"];
+                $household_id   = $result["household_id"];
+                
+                //UPDATE the [test_result] in Kit_submission record
+                $data[] = array(
+                    "record_id"     => $kit_sub_id,
+                    "test_result"   => $test_result
+                );
+                
+                // UPDATE the date completed in the main project
+                // get main Record from RC
+                if(array_key_exists($main_id, $main_data_buffer)){
+                    $main_result    = $main_data_buffer[$main_id];
+                }else{
+                    $fields         = array("hhd_record_id","hhd_participant_id","dep_1_record_id", "dep_1_participant_id", "dep_2_record_id" ,"dep_2_participant_id");
+                    $q              = \REDCap::getData($this->main_project, 'json', array($main_id) , $fields);
+                    $results        = json_decode($q,true);
+                    $main_result    = !empty($results) ? current($results) : array();
+                    $main_data_buffer[$main_id] = $main_result;
+                }
+                
+                if(!empty($main_result)){
+                    $check_ids  = array("hhd_record_id","dep_1_record_id","dep_2_record_id");
+                    $date_vars  = array("hhd_complete_date","dep_1_complete_date","dep_2_complete_date");
+                    $matching_var = null;
+                    foreach($check_ids as $idx => $check_id){
+                        if($main_result[$check_id] == $kit_sub_id){
+                            $matching_var = $date_vars[$idx];
+                            break;
+                        }
+                    }
+                    
+                    if($matching_var){
+                        // SAVE TO REDCAP
+                        if(isset($main_data_update[$main_id])){
+                            $main_data_update[$main_id][$matching_var ] = $date_complete;
+                        }else{
+                            $main_data_update[$main_id]   = array(
+                                "record_id"             => $main_id,
+                                $matching_var           => $date_complete
+                            );
+                        }
+                    }
+                }
+            }else{
+                //DO SOMETHING WITH RECORDS NOT FOUND?
+            }
         }        
-        $r    = \REDCap::saveData($this->kit_submission_project, 'json', json_encode($data) );
+        $r  = \REDCap::saveData($this->main_project, 'json', json_encode($main_data_update) );
+        $this->emDebug("did it not save to main?", $main_data_update);
+        $r  = \REDCap::saveData($this->kit_submission_project, 'json', json_encode($data) );
         return;
     }
 }
