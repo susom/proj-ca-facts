@@ -146,16 +146,13 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
     public function parseFormInput() {
         $this->emDebug("Incoming POST AC + Zip: ", $_POST);
         
-        // TODO add filter VAR
         if (empty($_POST)){
             $_POST = json_decode(file_get_contents('php://input'), true);
         }
-        $this->access_code   = isset($_POST[self::FIELD_ACCESS_CODE]) ? strtoupper(trim($_POST[self::FIELD_ACCESS_CODE])) : NULL ;
-        $this->zip_code      = isset($_POST[self::FIELD_ZIP])         ? trim($_POST[self::FIELD_ZIP]) : NULL ;
+        $this->access_code   = isset($_POST[self::FIELD_ACCESS_CODE]) ? strtoupper(trim(filter_var($_POST[self::FIELD_ACCESS_CODE], FILTER_SANITIZE_NUMBER_INT))) : NULL ;
+        $this->zip_code      = isset($_POST[self::FIELD_ZIP])         ? trim(filter_var($_POST[self::FIELD_ZIP], FILTER_SANITIZE_NUMBER_INT)) : NULL ;
         
         $valid               = (is_null($this->access_code) || is_null($this->zip_code)) ? false : true;
-        $this->emDebug($valid);
-
         return $valid;
     }
 
@@ -166,9 +163,8 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
     public function formHandler() {
         // Match INCOMING AccessCode Attempt and Verify ZipCode , find the record in the AC DB 
         $address_data = $this->getTertProjectData("access_code_db");
-        if (!$this->getTertProjectData("access_code_db")){
-            $this->emDebug("Should return error but disbaling for now", "Error, no matching AC/ZIP combination found");
-            // $this->returnError("Error, no matching AC/ZIP combination found");
+        if (!$address_data){
+            $this->returnError("Error, no matching AC/ZIP combination found");
         }
         
         //AT THIS POINT WE HAVE THE ACCESS CODE RECORD, IT HASNT BEEN ABUSED, IT HASNT YET BEEN CLAIMED
@@ -231,7 +227,7 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
 
         // Match INCOMING AccessCode Attempt and Verify ZipCode , find the record in the AC DB 
         $address_data = $this->getTertProjectData("access_code_db");
-        if (!$this->getTertProjectData("access_code_db")){
+        if (!$address_data){
             $this->returnError("Error, no matching AC/ZIP combination found");
         }
         
@@ -323,15 +319,88 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
      * @return bool record_id
      */
     public function getKitSubmissionId($qrscan) {
-        $filter     = "[kit_qr_input] = '" . $qrscan . "'";
-        $q          = \REDCap::getData('json', null , null  , null, null, false, false, false, $filter);
-        $results    = json_decode($q,true);
+        $houseid    = $this->getHouseHoldId($qrscan);
+        $this->emDebug("Got the HHID + SURVEYID FROM qrscan", $qrscan, $houseid);
 
-        foreach ($results as $result) {
-            $record_id = $result["record_id"];
-            return $record_id;
+        if(!empty($houseid)){
+            $part_id    = $houseid["survey_id"];
+
+            $filter     = "[household_id] = '" . $houseid["household_id"] . "'";
+            $fields     = array("household_record_id","kit_upc_code","household_id","participant_id","record_id");
+            $q          = \REDCap::getData($this->kit_submission_project, 'json', null , $fields  , null, null, false, false, false, $filter);
+            $results    = json_decode($q,true);
+
+            $this->emDebug("found the kit_submission_records", $results);
+
+            //NOW FIND A MATCH OR FIRST AVAILABLE SLOT
+            $unused_slots   = array();
+            $matched_result = null;
+            $found_match    = false;
+            foreach ($results as $result) {
+                $record_id  = $result["record_id"];
+                $main_id    = $result["household_record_id"];
+
+                if($result["participant_id"] == $part_id){
+                    // found a match;
+                    // break here and move on
+                    $matched_result = $result;
+                    $found_match    = true;
+                    break;
+                }
+
+                if(empty($result["participant_id"])){
+                    array_push($unused_slots, $result);
+                }
+            }
+
+            if(!$found_match && !empty($unused_slots)){
+                // made it here means no match, use first available slot
+                $matched_result = array_shift($unused_slots);
+            }
+
+            //FIRSt SAVE TO KITSUBMISSION (participant_id) THEN SAVE BACK TO MAIN PROJECT available slot
+            //have kitsubmit record_id, need to see if it matched dep_1_record_id, or dep_2_record_id
+            if($matched_result){
+                $kit_sub_id = $matched_result["record_id"];
+                $main_id    = $matched_result["household_record_id"];
+    
+                if(empty($matched_result["participant_id"])){
+                    //save to kit_submission_record
+                    $data   = array(
+                        "record_id"         => $kit_sub_id ,
+                        "participant_id"    => $part_id
+                    );
+                    $result = \REDCap::saveData($this->kit_submission_project, 'json', json_encode(array($data)) );
+                    $matched_result["participant_id"] = $part_id;
+                }
+
+                // now save this to the main record
+                $fields     = array("hhd_record_id","hhd_participant_id","dep_1_record_id", "dep_1_participant_id", "dep_2_record_id" ,"dep_2_participant_id");
+                $q          = \REDCap::getData($this->main_project, 'json', array($main_id) , $fields);
+                $result     = current(json_decode($q,true));
+
+                $check_ids  = array("hhd_record_id","dep_1_record_id","dep_2_record_id");
+                $part_vars  = array("hhd_participant_id","dep_1_participant_id","dep_2_participant_id");
+                $matching_var = null;
+                foreach($check_ids as $idx => $check_id){
+                    if($result[$check_id] == $kit_sub_id){
+                        $matching_var = $part_vars[$idx];
+                        break;
+                    }
+                }
+                
+                if($matching_var){
+                    // SAVE TO REDCAP
+                    $data   = array(
+                        "record_id"        => $main_id ,
+                        $matching_var      => $part_id
+                    );
+                    $result = \REDCap::saveData($this->main_project, 'json', json_encode(array($data)) );
+                }
+            }
+            
+            return $matched_result;  // can be null
         }
-
         return false;
     }
     
@@ -351,19 +420,43 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
      * Once household_id is obtained, need to pregenerate records in kit_submission project
      * @return array of recordids created
      */
-    public function linkKits($main_record_id, $number_of_kits, $household_id){
+    public function linkKits($main_record_id, $number_of_kits, $household_id, $head_of_household_id){
+        // Set all appropriate project IDs
+        $this->getAllSupportProjects();
+
         $new_ids = array();
-        for ($i =1 ; $i == $number_of_kits; $i++){
+        for ($i =1 ; $i <= $number_of_kits; $i++){
             $next_id = $this->getNextAvailableRecordId($this->kit_submission_project);
-           
+
+            $part_id = "";
+            if($i == 1){
+                $part_id    = $head_of_household_id;
+                $link_var   = "hhd_record_id";
+            }
+            if($i == 2){
+                $link_var   = "dep_1_record_id";
+            }
+            if($i == 3){
+                $link_var   = "dep_2_record_id";
+            }
+
             // SAVE TO REDCAP
             $data   = array(
                 "record_id"             => $next_id,
                 "household_record_id"   => $main_record_id,
-                "participant_id"        => $i,
+                "participant_id"        => $part_id,
                 "household_id"          => $household_id
             );
+            
             $r = \REDCap::saveData($this->kit_submission_project, 'json', json_encode(array($data)) );
+
+            // TODO THIS MAY NOT BE NECESSARY
+            // Save Submission ID ?  // NOT SURE HOW THE ACTUAL PART ID GONNA LINK UP FROM GAUSS END
+            $data   = array(
+                "record_id"             => $main_record_id,
+                $link_var               => $next_id
+            );
+            $r = \REDCap::saveData($this->main_project, 'json', json_encode(array($data)) );
         }
         return $new_ids;
     }  
@@ -373,6 +466,14 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
      */
 
     public function getHouseHoldId($qrscan){
+        // remove URL SCheme 
+        //TODO FIX THIS BETTER LATER
+        $qrscan = preg_replace( "#^[^:/.]*[:/]+#i", "", $qrscan );
+        $qrscan = str_replace("/?","?",$qrscan);
+        $temp   = explode("#",$qrscan);
+        $qrscan = $temp[0];
+        // MIGHT HAVE TO DO SOME MORE CLEANING AFTER THE "#" 
+
         $url        = "https://c19.gauss.com/artemis/decryptqr";
         $key        = "hRDauDM9We2B3YfQSMzRA7WowaHaOhv98b54LStQ";
         $headers    = array( "x-api-key: " . $key );
@@ -421,7 +522,7 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
 
 
                         // LIMIT ATTEMPTS
-                        if($current_attempt > 5 && 1==2){
+                        if($current_attempt > 5){
                             $this->emDebug("Too many attempts to redeem this Access Code.", $this->access_code, $this->zip_code);
                             return false;
                         }
@@ -569,9 +670,9 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
     /*
         Pull static files from within EM dir Structure
     */
-    function getAssetUrl($audiofile = "v_languageselect.mp3", $hard_domain = "http://6f28a03af000.ngrok.io"){
+    function getAssetUrl($audiofile = "v_languageselect.mp3", $hard_domain = "https://7fa27a8e30a1.ngrok.io"){
         $audio_file = $this->framework->getUrl("getAsset.php?file=".$audiofile."&ts=". $this->getLastModified() , true, true);
-        // $audio_file = str_replace("http://localhost",$hard_domain, $audio_file);
+        $audio_file = str_replace("http://localhost",$hard_domain, $audio_file);
 
         $this->emDebug("The NO AUTH URL FOR AUDIO FILE", $audio_file); 
         return $audio_file;
@@ -607,6 +708,88 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
         header("Content-type: application/json");
         echo json_encode(array("error" => $msg));
         exit();
+    }
+
+    /*
+        USE mail func
+    */
+    public function sendEmail($subject, $msg, $from="Twilio VM", $to="ca-factstudy@stanford.edu"){
+        //boundary
+        $semi_rand = md5(time());
+        $mime_boundary = "==Multipart_Boundary_x{$semi_rand}x";
+
+        //headers for attachment
+        //header for sender info
+        $headers = "From: "." <".$from.">";
+        $headers .= "\nMIME-Version: 1.0\n" . "Content-Type: multipart/mixed;\n" . " boundary=\"{$mime_boundary}\"";
+
+        //multipart boundary
+        $message = "--{$mime_boundary}\n" . "Content-Type: text/html; charset=\"UTF-8\"\n" .
+            "Content-Transfer-Encoding: 7bit\n\n" . $msg . "\n\n";
+
+        if (!mail($to, $subject, $message, $headers)) {
+            $this->emDebug("Email NOT sent");
+            return false;
+        }
+        $this->emDebug("Email sent");
+        return true;
+    }
+
+    /* 
+        Parse CSV to batchupload test Results
+    */
+    public function parseCSVtoDB($file){
+        $this->emDebug("im in the parseCSV vfucnitoin", $file);
+
+        $header_row = true;
+        $file       = fopen($file['tmp_name'], 'r');
+
+        $headers    = array();
+        $results    = Array();
+
+        if($file){
+            while (($line = fgetcsv($file)) !== FALSE) {
+                if($header_row){
+                    // adding extra column to determine which file the data came from
+                    $headers 	= $line;
+                    $header_row = false;
+                }else{
+                    // adding extra column to determine which csv file the data came from
+                    array_push($results, $line);
+                }
+            }
+            fclose($file);
+        }
+        
+        $data = array();
+        foreach($results as $result){
+            $upc            = $result[0];
+            $test_result    = $result[1];
+            $date_complete  = $result[2];
+
+            //FIRST FIND THE kit_submission_record by UPC
+            $filter     = "[kit_upc_code] = '" . $upc . "'";
+            $fields     = array("household_record_id","household_id","participant_id","record_id");
+            $q          = \REDCap::getData($this->kit_submission_project, 'json', null , $fields  , null, null, false, false, false, $filter);
+            $results    = json_decode($q,true);
+            $result     = current($results);
+
+            $ks_record_id   = $result["record_id"];
+            $main_id        = $result["household_record_id"];
+            $part_id        = $result["participant_id"];
+            $household_id   = $result["household_id"];
+            
+            //UPDATE the [test_result] in Kit_submission record
+            $data[] = array(
+                "record_id"     => $ks_record_id,
+                "test_result"   => $test_result
+            );
+            
+            // UPDATE the date completed in the main project
+            
+        }        
+        $r    = \REDCap::saveData($this->kit_submission_project, 'json', json_encode($data) );
+        return;
     }
 }
 ?>

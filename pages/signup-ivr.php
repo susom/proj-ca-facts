@@ -5,6 +5,7 @@ namespace Stanford\ProjCaFacts;
 require $module->getModulePath().'vendor/autoload.php';
 use Twilio\TwiML\VoiceResponse;
 
+// Set all appropriate project IDs
 $module->getAllSupportProjects();
 
 // Load the text/languages INTO SESSION BUT SESSION DOESNT WORK!
@@ -19,12 +20,13 @@ $temp_call_storage_key 	= $_POST["CallSid"];
 $choice 				= isset($_POST["Digits"]) 	? $_POST["Digits"] 	: null;
 
 // CALL TEMP STORAGE - PERSISTS THROUGH OUT CALL
+$module->emDebug("POST FROM TWILIO", $_POST);
 $call_vars 	= $module->getTempStorage($temp_call_storage_key);
-$action 	= isset($call_vars["action"]) 	? $call_vars["action"] 	: "fuckoff";
+$action 	= isset($call_vars["action"]) 	? $call_vars["action"] 	: "n/a";
 $speaker 	= isset($call_vars["speaker"]) 	? $call_vars["speaker"] : "Polly.Joanna";
 $accent 	= isset($call_vars["accent"]) 	? $call_vars["accent"] 	: "en-US";
 $lang 		= isset($call_vars["lang"]) 	? $call_vars["lang"] 	: "en";
-$module->emDebug("HIT THIS WITH EVERY POST BACK FROM TWILIO?",$temp_call_storage_key, $call_vars);
+$module->emDebug("Psuedo 'SESSION' functionality throughout call",$temp_call_storage_key, $call_vars);
 
 // STRUCTURE OF REDCAP PRJECT WILL NEED TO MODIFY THE ENGLISH field_names for OTHER LANGUAGEs 
 switch($lang){
@@ -43,9 +45,20 @@ switch($lang){
 	break;
 }
 
+// MONITOR THE POST FOR [Recording Sid] , [RecordingUrl] and send an email if it is present
+if(!empty($_POST["RecordingSid"]) && !empty($_POST["RecordingUrl"]) ){
+	$languages 	= array("es" => "Spanish", "zh" => "Chinese", "vi" => "Vietnamese", "en" => "English");
+	$language 		=  isset($languages[$lang]) ? $languages[$lang] : "English";
+	$recording_url 	= $_POST["RecordingUrl"];
+	$subject 		= "CA-FACTS IVR VM ($language)";
+	$msg 	 		= "<a href='".$recording_url."'>Click to listen to voicemail.</a>";
+	$module->sendEmail($subject, $msg);
+	$module->emDebug("Got a Voicemail, emailing!");
+}
+
 // FIRST CONTACT 
 if(isset($_POST["CallStatus"]) && $_POST["CallStatus"] == "ringing"){
-	$module->emDebug("Incoming Twilio _POST:", $_POST);
+	$module->emDebug("First Contact");
 
 	// Say Welcome
 	$response->say($dict["welcome"][$lang], array('voice' => $speaker, 'language' => $accent));
@@ -132,6 +145,8 @@ if(isset($_POST["CallStatus"]) && $_POST["CallStatus"] == "in-progress"){
 
 				// RECORD MESSAGE AFTER BEEP
 				$module->setTempStorage($temp_call_storage_key , "action", "questions-thanks" );
+
+				//TODO IF YOU DONT LETTHE WHOLE TIME PLAY OUT IT WONT POST BACK??? WHAT THE HECK
 				$response->record(['timeout' => 10, 'maxLength' => 15, 'transcribe' => 'true']); //transcribeCallback = [URL for ASYNC HIT WHEN DONE]
 			break;
 
@@ -155,8 +170,8 @@ if(isset($_POST["CallStatus"]) && $_POST["CallStatus"] == "in-progress"){
 		// [RecordingDuration] => 20
 		// [RecordingSid] => REcff30a178d6ac306c1535e30931fa406
 		// [RecordingUrl] => https://api.twilio.com/2010-04-01/Accounts/ACacac91f9bd6f40e13e4a4a838c8dffce/Recordings/REcff30a178d6ac306c1535e30931fa406
-		// TODO, SAVE THIS FILE? or JUST FGET SAVE THE RECORDING?
-		$module->emDebug("THE RECORDING VM???", $_POST["RecordingUrl"]);
+		// MAIL THE VM TO CAFACTS EMAIL BOX
+		// NEED TO MOVE THE SEND EMAIL PART OUT OF THIS FLOW BECAUSE a "hangup" IS CONSIDERED a "completed" call
 		$response->pause(['length' => 1]);
 		if($lang == "vi"){
 			$gather->play($module->getAssetUrl("v_q_thanks.mp3"));
@@ -277,6 +292,9 @@ if(isset($_POST["CallStatus"]) && $_POST["CallStatus"] == "in-progress"){
 		// STORE THE FULL RECORD
 		$all_vars = $module->getTempStorage($temp_call_storage_key);
 		$module->emDebug( "HERE IS THE COMPLETE TEMPSTORAGE- SAVE TO REDCAP BOYEE", $all_vars );
+
+		// DONT VERIFY AC OR ZIP UNTIL ALL THE WAY AT THE END?
+		//TODO PROBABLY NEED TO VERIFY AC/ZIP AT THE TOP?
 		$module->IVRHandler($all_vars);
 		
 		// DELETE THE TEMP STORAGE?

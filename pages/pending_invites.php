@@ -11,9 +11,10 @@ if(!empty($_POST["action"])){
             $qrscan     = $_POST["qrscan"] ?? null;
             $testpeople = $_POST["testpeople"] ?? null;
 
-            // example : artemis.gauss.com?c=110f18709d39b9e683916de0dd5f9b283a2835bcef332d4ece5ca2e7af43f9b0f1af5a7e6c2081175fef333dbf506337298677dc5c8a7cd642f16ed8c43dadd890e359491d207f18ff8f2bd9b79c81082a9609d30380983
             $result     = $module->getHouseHoldId($qrscan);
             $hh_id      = $result["household_id"];
+            $part_id    = $result["survey_id"]; // THIS SHOULD BE THE HEAD OF HOUSEHOLD i hope  //
+
 
             //TODO remove this bypass when done wiht DEMO
             if($hh_id){
@@ -21,12 +22,13 @@ if(!empty($_POST["action"])){
                 $data   = array(
                     "record_id"             => $record_id,
                     "kit_qr_code"           => $qrscan,
-                    "kit_household_code"    => $hh_id
+                    "kit_household_code"    => $hh_id,
+                    "hhd_participant_id"    => $part_id
                 );
                 $r      = \REDCap::saveData($pid, 'json', json_encode(array($data)) );
 
                 // Pre Generates Records in Kit Submission Project
-                $module->linkKits($record_id, $testpeople, $hh_id);
+                $module->linkKits($record_id, $testpeople, $hh_id, $part_id);
             } 
         break;
 

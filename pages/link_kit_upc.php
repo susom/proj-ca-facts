@@ -9,8 +9,9 @@ if(!empty($_POST["action"])){
         case "getSubmissionId":
             $qrscan     = $_POST["qrscan"] ?? null;
             $result     = $module->getKitSubmissionId($qrscan);
-            if($result){
-                $result     = array("error" => false, "record_id" => $result);
+
+            if(isset($result["record_id"])){
+                $result     = array("error" => false, "record_id" => $result["record_id"], "participant_id" => $result["participant_id"], "main_id" => $result["household_record_id"]);
             }else{
                 $result     = array("error" => true);
             }
@@ -18,12 +19,14 @@ if(!empty($_POST["action"])){
 
         case "linkUPC":
             $upcscan        = $_POST["upcscan"] ?? null;
+            $qrscan         = $_POST["qrscan"] ?? null;
             $record_id      = $_POST["record_id"] ?? null;
 
             // SAVE TO REDCAP
             $data   = array(
                 "record_id"         => $record_id,
-                "kit_upc_code"      => $upcscan
+                "kit_upc_code"      => $upcscan,
+                "kit_qr_input"      => $qrscan
             );
 
             $result = \REDCap::saveData($pid, 'json', json_encode(array($data)) );
@@ -189,11 +192,20 @@ if($em_mode != "kit_submission"){
     <br><br>
 
     <a href="<?=$link_kit_upc?>" id="reset_link_upc" type="button" class="btn btn-lg btn-primary">Scan/Link a new Test Kit</a>
-
+ 
     <br><br><br><br><br><br>
     <br><br><br><br><br><br>
+    
+    <h4>Main Head of HouseHold KIT QR?</h4>
+    <textarea>https://artemis.gauss.com/?c=1e051d2667cd0dc13b73eac7df9fa9010ad43d568abd2708c6fba5d48bc71b569efbbf866f287643b9bf4e3798cd6b22cab5793a46e12bf64c5689cd18282459b425fd2f5dd7f7f23b5c87989a95e3cc99030f9b4e381bf#/partner-verification?c=1e051d2667cd0dc13b73eac7df9fa9010ad43d568abd2708c6fba5d48bc71b569efbbf866f287643b9bf4e3798cd6b22cab5793a46e12bf64c5689cd18282459b425fd2f5dd7f7f23b5c87989a95e3cc99030f9b4e381bf</textarea>
+    
+    <h4>Dependent 1</h4>
+    <textarea>https://artemis.gauss.com/?c=19fb4b745315c68e80cbf3ea1d5686c884efca7a493787df19d72565d80f55ebf1fedb673344bf2b814486718ec00fdbe8090ba6371a9f2dca38c2dc2b98630b023faaf9f1c0314c9dc3c368fc6ea68cb95b0aafc89855b#/stanford/splash</textarea>
 
-    <textarea>artemis.gauss.com?c=110f18709d39b9e683916de0dd5f9b283a2835bcef332d4ece5ca2e7af43f9b0f1af5a7e6c2081175fef333dbf506337298677dc5c8a7cd642f16ed8c43dadd890e359491d207f18ff8f2bd9b79c81082a9609d30380983</textarea>
+    <h4>Dependent 2</h4>
+    <textarea>https://artemis.gauss.com/?c=15e1ae052c7b5cd4cfcbf6d9322c995a1a2a7e8dce32d88d0130f2a98a31f109a89b53c4fb72029715df6c8cd1020cb87dc3ab642776af9648a50172731981c493bae3a52a020c8e3a2e4da589b77afc4d314588c68ade9#/partner-verification?c=15e1ae052c7b5cd4cfcbf6d9322c995a1a2a7e8dce32d88d0130f2a98a31f109a89b53c4fb72029715df6c8cd1020cb87dc3ab642776af9648a50172731981c493bae3a52a020c8e3a2e4da589b77afc4d314588c68ade9</textarea>
+
+    <h4>Pretend UPC</h4>
     <textarea>1234567890</textarea>
     <script>
         $(document).ready(function(){
@@ -248,6 +260,7 @@ if($em_mode != "kit_submission"){
             $("input[name='kit_upc_code']").on("input", function(){
                 var upcscan         = $(this).val();
                 var kit_record_id   = $(this).attr("data-kitrecordid");
+                var qrscan          = $("#test_kit_qr").val();
 
                 var _el = $(this);
                 $.ajax({
@@ -255,6 +268,7 @@ if($em_mode != "kit_submission"){
                     data: {
                             "action"    : "linkUPC",
                             "upcscan"    : upcscan,
+                            "qrscan"    : qrscan,
                             "record_id"     : kit_record_id
                     },
                     dataType: 'json'

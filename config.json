@@ -44,6 +44,11 @@
 	        "name": "CA-FACTS Test Kit / UPC Linkage",
 	        "icon": "gear",
 	        "url": "pages/link_kit_upc.php"
+	      },
+		  {
+	        "name": "CA-FACTS Bulk Upload Lab Results",
+	        "icon": "gear",
+	        "url": "pages/upload_results.php"
 	      }
 		  
 		],
@@ -60,6 +65,7 @@
         "pages/signup-ivr",
 		"pages/signup",
 		"pages/kitsubmission",
+		"pages/upload_results",
 		"getAsset"
 	],
 
