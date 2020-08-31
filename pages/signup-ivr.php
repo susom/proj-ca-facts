@@ -16,8 +16,8 @@ $dict 		= $module->parseTextLanguages($lang_file);
 $response 	= new VoiceResponse;
 
 // POST FROM TWILIO
-$temp_call_storage_key 	= $_POST["CallSid"];
-$choice 				= isset($_POST["Digits"]) 	? $_POST["Digits"] 	: null;
+$temp_call_storage_key 	= trim(filter_var($_POST["CallSid"], FILTER_SANITIZE_STRING));
+$choice 				= isset($_POST["Digits"]) 	? trim(filter_var($_POST["Digits"], FILTER_SANITIZE_STRING)) 	: null;
 
 // CALL TEMP STORAGE - PERSISTS THROUGH OUT CALL
 $module->emDebug("POST FROM TWILIO", $_POST);
@@ -47,9 +47,9 @@ switch($lang){
 
 // MONITOR THE POST FOR [Recording Sid] , [RecordingUrl] and send an email if it is present
 if(!empty($_POST["RecordingSid"]) && !empty($_POST["RecordingUrl"]) ){
-	$languages 	= array("es" => "Spanish", "zh" => "Chinese", "vi" => "Vietnamese", "en" => "English");
-	$language 		=  isset($languages[$lang]) ? $languages[$lang] : "English";
-	$recording_url 	= $_POST["RecordingUrl"];
+	$languages 		= array("es" => "Spanish", "zh" => "Chinese", "vi" => "Vietnamese", "en" => "English");
+	$language 		= isset($languages[$lang]) ? $languages[$lang] : "English";
+	$recording_url 	= trim(filter_var($_POST["RecordingUrl"], FILTER_SANITIZE_STRING));
 	$subject 		= "CA-FACTS IVR VM ($language)";
 	$msg 	 		= "<a href='".$recording_url."'>Click to listen to voicemail.</a>";
 	$module->sendEmail($subject, $msg);

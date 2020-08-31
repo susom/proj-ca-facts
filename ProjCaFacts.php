@@ -573,11 +573,13 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
      * @param $key $val pare
      */
     public function setTempStorage($storekey, $k, $v) {
-        $temp = $this->getTempStorage($storekey);
-        $temp[$k] = $v;
+        if(!is_null($storekey)){
+            $temp = $this->getTempStorage($storekey);
+            $temp[$k] = $v;
 
-        // THIS IS CAUSING TWILIO TO FAIL WHY? 
-        $this->setProjectSetting($storekey, json_encode($temp));
+            // THIS IS CAUSING TWILIO TO FAIL WHY? 
+            $this->setProjectSetting($storekey, json_encode($temp));
+        }
         return; 
     }
 
@@ -586,8 +588,12 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
      * @param $key $val pare
      */
     public function getTempStorage($storekey) {
-        $temp = $this->getProjectSetting($storekey);
-        $temp = empty($temp) ? array() : json_decode($temp,1);
+        if(!is_null($storekey)){
+            $temp = $this->getProjectSetting($storekey);
+            $temp = empty($temp) ? array() : json_decode($temp,1);
+        }else{
+            $temp = array();
+        }
         return $temp;
     }
 
@@ -670,9 +676,12 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
     /*
         Pull static files from within EM dir Structure
     */
-    function getAssetUrl($audiofile = "v_languageselect.mp3", $hard_domain = "https://7fa27a8e30a1.ngrok.io"){
+    function getAssetUrl($audiofile = "v_languageselect.mp3", $hard_domain = ""){
         $audio_file = $this->framework->getUrl("getAsset.php?file=".$audiofile."&ts=". $this->getLastModified() , true, true);
-        $audio_file = str_replace("http://localhost",$hard_domain, $audio_file);
+        
+        if(!empty($hard_domain)){
+            $audio_file = str_replace("http://localhost",$hard_domain, $audio_file);
+        }
 
         $this->emDebug("The NO AUTH URL FOR AUDIO FILE", $audio_file); 
         return $audio_file;
