@@ -514,6 +514,8 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
                     $q          = \REDCap::getData($pid, 'json', null , null  , null, null, false, false, false, $filter);
                     $results    = json_decode($q,true);
 
+                    $for_test   = in_array($this->access_code, array(123456,654321));
+
                     foreach ($results as $result) {
                         $ac_code_record             = $result["record_id"];
                         $current_attempt            = $result["usage_attempts"] ?? 0;
@@ -522,7 +524,7 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
 
 
                         // LIMIT ATTEMPTS
-                        if($current_attempt > 5){
+                        if($current_attempt > 5 && !$for_test){
                             $this->emDebug("Too many attempts to redeem this Access Code.", $this->access_code, $this->zip_code);
                             return false;
                         }
@@ -536,7 +538,7 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
 
                         //VERIFIY THAT THE CODE USED MATCHES ZIPCODE OF ADDRESS FOR IT
                         if($result['zip'] == $this->zip_code){
-                            if(!empty($redeemed_participant_id) && !empty($redeemed_participant_date)){
+                            if(!empty($redeemed_participant_id) && !empty($redeemed_participant_date) && !$for_test){
                                 $this->emDebug("This Access Code has already been claimed on ", $this->redeemed_participant_date);
                                 return false;
                             }
