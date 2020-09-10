@@ -260,7 +260,9 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
         $data = array(
             "record_id"             => $this->access_code_record,
             "participant_used_id"   => $next_id,
-            "participant_used_date" => date("Y-m-d H:i:s")
+            "participant_used_date" => date("Y-m-d H:i:s"),
+            "ivr_intake"            => 1
+
         );
         $r    = \REDCap::saveData($this->access_code_project, 'json', json_encode(array($data)) );
 
