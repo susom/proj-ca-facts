@@ -413,8 +413,9 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
     public function getPendingInvites(){
         $fields     = array("record_id","testpeople", "code", "address_1" ,"address_2","city", "state", "zip");
         $filter     = "[code] != '' AND [kit_household_code] = '' AND [testpeople] <> ''";
-        $q          = \REDCap::getData('json', null , $fields  , null, null, false, false, false, $filter);
+        $q          = \REDCap::getData($this->main_project, 'json', null , $fields  , null, null, false, false, false, $filter);
         $results    = json_decode($q,true);
+        $this->emDebug("this is not working in prod", $q, $results);
         return $results;
     }
 
