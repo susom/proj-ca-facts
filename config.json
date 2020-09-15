@@ -89,7 +89,37 @@
                   "value" : "kit_submission"
                 }
             ]
-        },
+		},
+		{
+			"key": "xpsship-api-key",
+			"name": "<b>XPSship.com API KEY</b>",
+			"required": false,
+			"type": "text"
+		},
+		{
+			"key": "xpsship-client-id",
+			"name": "<b>XPSship.com Client ID</b>",
+			"required": false,
+			"type": "text"
+		},
+		{
+			"key": "xpsship-integration-id",
+			"name": "<b>XPSship.com integration ID</b>",
+			"required": false,
+			"type": "text"
+		},
+		{
+			"key": "usps-api-key",
+			"name": "<b>USPS API Key</b>",
+			"required": false,
+			"type": "text"
+		},
+		{
+			"key": "usps-client-id",
+			"name": "<b>USPS Client ID</b>",
+			"required": false,
+			"type": "text"
+		},
 		{
 			"key": "enable-project-debug-logging",
 			"name": "<b>Enable Debug Logging</b><br><i>(optional)</i> Requires installation and configuration of emLogger",

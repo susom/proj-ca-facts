@@ -167,32 +167,38 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
             $this->returnError("Error, no matching AC/ZIP combination found");
         }
         
-        //AT THIS POINT WE HAVE THE ACCESS CODE RECORD, IT HASNT BEEN ABUSED, IT HASNT YET BEEN CLAIMED
-        //0.  GET NEXT AVAIL ID IN MAIN PROJECT
-        $next_id = $this->getNextAvailableRecordId($this->main_project);
+        //TODO ALWAYS RETURN ADDRESS DATA but ADD PROPERTY FOR EXISTING
+        if(!empty($address_data["participant_used_id"])){
+            // AC ALREADY USED, bUT SEND THE SURVEY URL ANYWAY
+            $next_id = $address_data["participant_used_id"];
+        }else{
+            //AT THIS POINT WE HAVE THE ACCESS CODE RECORD, IT HASNT BEEN ABUSED, IT HASNT YET BEEN CLAIMED
+            //0.  GET NEXT AVAIL ID IN MAIN PROJECT
+            $next_id = $this->getNextAvailableRecordId($this->main_project);
 
-        //1.  CREATE NEW RECORD, POPULATE these 2 fields
-        $data = array(
-            "record_id" => $next_id,
-            "code"      => $this->access_code
-        );
-        if($address_data){
-            foreach($address_data as $k => $v){
-                if(in_array($k, array("record_id","participant_used_id","participant_used_date","usage_attempts","ca_facts_access_codes_complete"))){
-                    continue;
+            //1.  CREATE NEW RECORD, POPULATE these 2 fields
+            $data = array(
+                "record_id" => $next_id,
+                "code"      => $this->access_code
+            );
+            if($address_data){
+                foreach($address_data as $k => $v){
+                    if(in_array($k, array("record_id","participant_used_id","participant_used_date","usage_attempts","ca_facts_access_codes_complete"))){
+                        continue;
+                    }
+                    $data[$k] = $v;
                 }
-                $data[$k] = $v;
             }
-        }
-        $r    = \REDCap::saveData($this->main_project, 'json', json_encode(array($data)) );
+            $r    = \REDCap::saveData($this->main_project, 'json', json_encode(array($data)) );
 
-        //2.  UPDATE AC DB record with time stamp and "claimed" main record project
-        $data = array(
-            "record_id"             => $this->access_code_record,
-            "participant_used_id"   => $next_id,
-            "participant_used_date" => date("Y-m-d H:i:s")
-        );
-        $r    = \REDCap::saveData($this->access_code_project, 'json', json_encode(array($data)) );
+            //2.  UPDATE AC DB record with time stamp and "claimed" main record project
+            $data = array(
+                "record_id"             => $this->access_code_record,
+                "participant_used_id"   => $next_id,
+                "participant_used_date" => date("Y-m-d H:i:s")
+            );
+            $r    = \REDCap::saveData($this->access_code_project, 'json', json_encode(array($data)) );
+        }        
 
         //3.  GET PUBLIC SURVEY URL WITH FIELDS LINKED
         $survey_link = \REDCap::getSurveyLink($record=$next_id, $instrument='invitation_questionnaire', $event_id='', $instance=1, $project_id=$this->main_project);
@@ -413,8 +419,8 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
     public function getPendingInvites(){
         $params = array(
             "return_format" => "json",
-            "fields" => ["record_id","testpeople", "code", "address_1" ,"address_2","city", "state", "zip"],
-            "filterLogic" => "[access_code] != '' AND [kit_household_code] = '' AND [testpeople] != ''",
+            "fields" => ["record_id","testpeople", "code", "address_1" ,"address_2","city", "state", "zip", "kit_household_code", "xps_booknumber"],
+            "filterLogic" => "([access_code] != '' AND [kit_household_code] = '' AND [testpeople] != '') OR ([xps_booknumber] != '' AND [kit_shipped_date] = '')",
         );
 
         $q          = \REDCap::getData($params);
@@ -529,9 +535,9 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
                         $redeemed_participant_id    = $result["participant_used_id"];
                         $redeemed_participant_date  = $result["participant_used_date"];
 
-
                         // LIMIT ATTEMPTS
-                        if($current_attempt > 5 && !$for_test){
+                        // NERF THIS RETURN SOMETHING EVERYTIME
+                        if($current_attempt > 5 && !$for_test && false){
                             $this->emDebug("Too many attempts to redeem this Access Code.", $this->access_code, $this->zip_code);
                             return false;
                         }
@@ -546,8 +552,10 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
                         //VERIFIY THAT THE CODE USED MATCHES ZIPCODE OF ADDRESS FOR IT
                         if($result['zip'] == $this->zip_code){
                             if(!empty($redeemed_participant_id) && !empty($redeemed_participant_date) && !$for_test){
-                                $this->emDebug("This Access Code has already been claimed on ", $this->redeemed_participant_date);
-                                return false;
+                                $this->emDebug("This Access Code has already been claimed on ", $redeemed_participant_date);
+                                
+                                // NO LONGER BLOCK ATTEMPTS BUT ADD INDICATOR THAT ITS BEEN CLAIMED
+                                // return false;
                             }
 
                             $this->emDebug("Found a matching AC/ZIP for: ", $this->access_code, $this->zip_code);
@@ -851,5 +859,102 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
         $r  = \REDCap::saveData($this->kit_submission_project, 'json', json_encode($data) );
         return;
     }
+
+    /*
+        CURL function to interact with SHipping APIs
+        List of Services : GET https://xpsshipper.com/restapi/v1/customers/12332135/services
+        Create new Order : PUT  https://xpsshipper.com/restapi/v1/customers/12332135/integrations/49446/orders/:orderId   (:orderId = Household id)
+        Get Shipping Label : GET  https://xpsshipper.com/restapi/v1/customers/12332135/shipments/:bookNumber/label/PNG   (:bookNumber = :orderId ???= Household id)
+    */
+    public function xpsCurl($api_url, $method="GET", $data=array(), $api_key=""){
+        $api_key = $this->getProjectSetting('xpsship-api-key');
+        
+        
+        $ch = curl_init($api_url);
+        $header_data = array( 'Authorization: RSIS ' . $api_key );
+
+        if($method == "PUT" || $method == "POST"){
+            array_push($header_data, 'Content-Type: application/json');
+            array_push($header_data, 'Content-Length: ' . strlen($data));
+            curl_setopt($ch, CURLOPT_POSTFIELDS, $data);
+        }
+
+        if($method == "PUT"){
+            curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "PUT");
+        }else if($method == "POST"){
+            curl_setopt($ch, CURLOPT_POST, true);
+        }
+
+        curl_setopt($ch, CURLOPT_HTTPHEADER, $header_data);
+		curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, FALSE);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, FALSE);
+		curl_setopt($ch, CURLOPT_TIMEOUT, 105200);
+		curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+		curl_setopt($ch, CURLOPT_HEADER, 0);
+        curl_setopt($ch, CURLOPT_VERBOSE, 0);
+        
+        $info 	= curl_getinfo($ch);
+		$result = curl_exec($ch);
+        curl_close($ch);
+        
+        return $result;
+    }
+
+
+    /* 
+        Create ORDER for XPS 
+    */
+    public function xpsData($hh_id, $testkits, $shipping_addy){
+        $weight_in_lb = array("0.5", "0.56", "0.63");
+
+        $data = array(
+            "orderId"               => $hh_id
+           ,"orderDate"             => date("Y-m-d")
+           ,"shippingService"       => "usps_first_class"
+           ,"shipperReference"      => "CA-FACTS / Exempt Human Specimen"
+           ,"contentDescription"    => $testkits . " Test Kits"
+           ,"weightUnit"            => "lb"
+           ,"orderNumber"           => $hh_id
+           ,"fulfillmentStatus"     => "pending"
+           ,"shippingTotal"         => null
+           ,"dimUnit"               => null
+           ,"orderGroup"            => null
+           ,"dueByDate"             => null
+           ,"items"                 => null
+           ,"sender"                => array(
+                "name"          => "CA-FACTS"
+               ,"company"       => "Stanford University"
+               ,"address1"      => "1291 WELCH RD"
+               ,"address2"      => "GRANT BLDG L134"
+               ,"city"          => "Stanford"
+               ,"state"         => "CA"
+               ,"zip"           => "94305"
+               ,"country"       => "US"
+               ,"phone"         => "6507244947"
+           )
+           ,"receiver"              => array(
+                "name"          => $shipping_addy["name"]
+               ,"company"       => ""
+               ,"address1"      => $shipping_addy["address_1"]
+               ,"address2"      => $shipping_addy["address_2"]
+               ,"city"          => $shipping_addy["city"]
+               ,"state"         => $shipping_addy["state"]
+               ,"zip"           => $shipping_addy["zip"]
+               ,"country"       => "US"
+           )
+           ,"packages" => array(
+               array(
+                    "weight" => $weight_in_lb[$testkits-1]
+                   ,"insuranceAmount"   => null
+                   ,"declaredValue"     => null
+                   ,"length"            => null
+                   ,"width"             => null
+                   ,"height"            => null
+                )
+           )
+        );
+
+       return $data;
+    }    
 }
 ?>

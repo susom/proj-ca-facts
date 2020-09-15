@@ -3,6 +3,9 @@ namespace Stanford\ProjCaFacts;
 /** @var \Stanford\ProjCaFacts\ProjCaFacts $module */
 
 
+$xps_client_id      = $module->getProjectSetting('xpsship-client-id');;
+$xps_integration_id = $module->getProjectSetting('xpsship-integration-id');;
+
 if(!empty($_POST["action"])){
     $action = $_POST["action"];
     switch($action){
@@ -10,20 +13,39 @@ if(!empty($_POST["action"])){
             $record_id  = $_POST["record_id"] ?? null;
             $qrscan     = $_POST["qrscan"] ?? null;
             $testpeople = $_POST["testpeople"] ?? null;
+            $addy1      = $_POST["addy1"] ?? null;
+            $addy2      = $_POST["addy2"] ?? null;
+            $city       = $_POST["city"] ?? null;
+            $state      = $_POST["state"] ?? null;
+            $zip        = $_POST["zip"] ?? null;
 
             $result     = $module->getHouseHoldId($qrscan);
             $hh_id      = $result["household_id"];
             $part_id    = $result["survey_id"]; // THIS SHOULD BE THE HEAD OF HOUSEHOLD i hope  //
 
-
-            //TODO remove this bypass when done wiht DEMO
             if($hh_id){
+                //TODO, GET hh_id, THEN PUT ORDER TO XPSship
+                $fake_hh_id = "1234567898";
+                $shipping_addy  = array(
+                    "name" => "CA-FACTS Participant"
+                    ,"address_1" => $addy1
+                    ,"address_2" => $addy2
+                    ,"city" => $city
+                    ,"state" => $state
+                    ,"zip" => $zip );
+                $shipping_data  = $module->xpsData($fake_hh_id, $testpeople, $shipping_addy);
+                $module->emDebug("shipping data", $shipping_data);
+                $result["xps_put"] = $module->xpsCurl("https://xpsshipper.com/restapi/v1/customers/$xps_client_id/integrations/$xps_integration_id/orders/$fake_hh_id", "PUT", json_encode($shipping_data) );
+                $module->emDebug("xps api call", "https://xpsshipper.com/restapi/v1/customers/$xps_client_id/integrations/$xps_integration_id/orders/$fake_hh_id");
+                //TODO, PUT order to USPS
+
                 // SAVE TO REDCAP
                 $data   = array(
                     "record_id"             => $record_id,
                     "kit_qr_code"           => $qrscan,
                     "kit_household_code"    => $hh_id,
-                    "hhd_participant_id"    => $part_id
+                    "hhd_participant_id"    => $part_id,
+                    "xps_booknumber"        => "pending"
                 );
                 $r      = \REDCap::saveData($pid, 'json', json_encode(array($data)) );
 
@@ -34,6 +56,10 @@ if(!empty($_POST["action"])){
 
         case "printLabel":
             $record_id  = $_POST["record_id"] ?? null;
+
+            //TODO PULL LABEL FROM XPS API
+            $booknumber = "123abc";
+            // $welp   = $module->xpsCurl("https://xpsshipper.com/restapi/v1/customers/12332135/shipments/$booknumber/label/PDF");
 
             if($record_id){
                 $fields     = array("record_id","testpeople", "code", "address_1" ,"address_2","city", "state", "zip");
@@ -79,7 +105,8 @@ if($em_mode != "kit_order"){
     <p>Report Logic :
         <br> <b>code</b> is <em>not empty</em>
         <br> <b>testpeople</b> is <em>not empty</em>
-        <br> <b>kit_household_code</b> is <em>empty</em></p>
+        <br> <b>kit_household_code</b> is <em>empty</em>
+        <br> <b>xps_booknumber</b> is <em>empty</em></p>
     <br>
     <br>
 
@@ -90,6 +117,7 @@ if($em_mode != "kit_order"){
         $dumphtml   = array();
         $dumphtml[] = "<tbody class='table-striped' id='pending_invites'>";
         foreach($pending as $invite){
+            $booknumber = $invite["xps_booknumber"];
             $addy_top   = $invite["address_1"];
             if( !empty($invite["address_2"]) ){
                 $addy_top .= "<br>" . $invite["address_2"];
@@ -100,7 +128,42 @@ if($em_mode != "kit_order"){
             $dumphtml[] = "<td class='ac'>". $invite["code"] ."</td>";
             $dumphtml[] = "<td class='addy'>". $addy_top . "<br>" . $addy_bot ."</td>";
             $dumphtml[] = "<td class='numkits'>". $invite["testpeople"] ."</td>";
-            $dumphtml[] = "<td class='qrscan'><input type='text' name='kit_qr_code' data-numkits='". $invite["testpeople"] ."' data-recordid='".$invite["record_id"]."' id='record_".$invite["record_id"]."'/><label for='record_".$invite["record_id"]."'></label></td>";
+            $dumphtml[] = "<td class='qrscan'>";
+            if(!empty($booknumber)){
+                if($booknumber == "pending"){
+                    $search_data = array( "keyword" => $invite["kit_household_code"] );
+                    $xps_return  = $module->xpsCurl("https://xpsshipper.com/restapi/v1/customers/$xps_client_id/searchShipments", "POST", json_encode($search_data) );
+                    $xps_json    = json_decode($xps_return,1);
+                    
+                    if(!empty($xps_json["shipments"])){
+                        $booked_shipment_info = current($xps_json["shipments"]);
+                        
+                        if(!empty($booked_shipment_info["bookNumber"])){
+                            $booknumber = $booked_shipment_info["bookNumber"];
+                            // UPDATE RECORD IN REDCAP
+                            $data   = array(
+                                "record_id"             => $invite["record_id"],
+                                "xps_booknumber"        => $booknumber,
+                                "tracking_number"       => $booked_shipment_info["trackingNumber"],
+                                "shipping_service"      => $booked_shipment_info["carrierCode"]
+                            );
+                            $r      = \REDCap::saveData($pid, 'json', json_encode(array($data)) );
+                        }
+                    }else{
+                        $dumphtml[] = '<strong>Household ID : '.$invite["kit_household_code"].'</strong><a href="https://xpsshipper.com/ec/#/batch" class="xps" target="_blank">Process booking numbers on XPSship.com</a>';
+                    }
+                }
+                
+                if($booknumber != "pending"){
+                    $xps_return  = $module->xpsCurl("https://xpsshipper.com/restapi/v1/customers/$xps_client_id/shipments/$booknumber/label/PDF");
+                    $dumphtml[] = '<a href="#" class="printlabel">Print Label</a>';
+                }
+            }else{
+                $dumphtml[] = "<input type='text' name='kit_qr_code' 
+                data-addy1='".$invite["address_1"]."' data-addy2='".$invite["address_2"]."' data-city='".$invite["city"]."' data-state='".$invite["state"]."' data-zip='".$invite["zip"]."'
+                data-numkits='". $invite["testpeople"] ."' data-recordid='".$invite["record_id"]."' id='record_".$invite["record_id"]."'/><label for='record_".$invite["record_id"]."'></label>";
+            }
+            $dumphtml[] = "</td>";
             $dumphtml[] = "</tr>";
         }
         $dumphtml[]     = "</tbody>";
@@ -120,7 +183,12 @@ if($em_mode != "kit_order"){
             display:inline-block;
             cursor:pointer;
             display:none;
+            position:relative;
         }
+        #pending_invites .qrscan input[name='kit_qr_code'] {
+
+        }
+
         #pending_invites .qrscan{
             position:relative;
             cursor:pointer;
@@ -137,10 +205,25 @@ if($em_mode != "kit_order"){
             cursor:pointer;
         }
 
+        #pending_invites .qrscan input.loading{
+            color:#ccc;
+        }
+        #pending_invites .qrscan input.failed{
+            color:red;
+        }
+        #pending_invites .qrscan input.success{
+            color:green;
+        }
+
         #pending_invites .qrscan input:focus + label{
             display:none;
         }
 
+        a.xps,a.xps:visited {
+            color:blue;
+            cursor:pointer;
+        }
+       
         .qrscan .printlabel{
             text-decoration:none;
             margin-left: 20px;
@@ -186,9 +269,17 @@ if($em_mode != "kit_order"){
 
             // TAKING SCAN INPUT AND GETTING houshold id
             $("input[name='kit_qr_code']").on("input", function(){
+                //TODO add LOADING gif
+                $(this).addClass("loading");
+
                 var record_id   = $(this).data("recordid");
                 var qrscan      = $(this).val();
                 var testpeople  = $(this).data("numkits");
+                var addy1       = $(this).data("addy1");
+                var addy2       = $(this).data("addy2");
+                var city        = $(this).data("city");
+                var state       = $(this).data("state");
+                var zip         = $(this).data("zip");
 
                 var _el = $(this);
 
@@ -198,18 +289,32 @@ if($em_mode != "kit_order"){
                             "action"    : "getHouseHoldId",
                             "record_id" : record_id,
                             "qrscan"    : qrscan,
-                            "testpeople": testpeople
+                            "testpeople": testpeople,
+                            "addy1": addy1,
+                            "addy2": addy2,
+                            "city": city,
+                            "state": state,
+                            "zip": zip
                     },
                     dataType: 'json'
                 }).done(function (result) {
-                    var hh_id = result["household_id"];
-                    if(hh_id){
+                    _el.removeClass("loading");
+                    console.log("whats up", result);
+
+                    var hh_id;
+                    if(hh_id = result["household_id"]){
+                        _el.addClass("success");
                         var par = _el.parent();
                         par.empty();
                         var hhid_span   = $("<strong>").text("Household ID : " + hh_id);
                         par.append(hhid_span);
-                        var printlabel  = $("<a>").attr("href","#").addClass("printlabel").attr("data-recordid",record_id).text("Print Label");
-                        par.append(printlabel); 
+
+                        var book_on_xps = $("<a>").attr("href","https://xpsshipper.com/ec/#/batch").addClass("xps").attr("target", "_blank").text("Process booking numbers on XPSship.com");
+                        par.append(book_on_xps);
+                        // var printlabel  = $("<a>").attr("href","#").addClass("printlabel").attr("data-recordid",record_id).text("Print Label");
+                        // par.append(printlabel); 
+                    }else{
+                        _el.addClass("failed");
                     }
                 }).fail(function () {
                     console.log("something failed");
@@ -245,3 +350,9 @@ if($em_mode != "kit_order"){
     </script>
 </div>
 <?php } ?>
+
+<!-- 
+List of Services : GET https://xpsshipper.com/restapi/v1/customers/12332135/services
+Create new Order : PUT  https://xpsshipper.com/restapi/v1/customers/12332135/integrations/49446/orders/:orderId   (:orderId = Household id)
+Get Shipping Label : GET  https://xpsshipper.com/restapi/v1/customers/12332135/shipments/:bookNumber/label/PNG   (:bookNumber = :orderId ???= Household id)
+SEARCH shipments : POST https://xpsshipper.com/restapi/v1/customers/TEST00002/searchShipments -->
