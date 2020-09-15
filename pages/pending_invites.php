@@ -350,9 +350,3 @@ if($em_mode != "kit_order"){
     </script>
 </div>
 <?php } ?>
-
-<!-- 
-List of Services : GET https://xpsshipper.com/restapi/v1/customers/12332135/services
-Create new Order : PUT  https://xpsshipper.com/restapi/v1/customers/12332135/integrations/49446/orders/:orderId   (:orderId = Household id)
-Get Shipping Label : GET  https://xpsshipper.com/restapi/v1/customers/12332135/shipments/:bookNumber/label/PNG   (:bookNumber = :orderId ???= Household id)
-SEARCH shipments : POST https://xpsshipper.com/restapi/v1/customers/TEST00002/searchShipments -->
