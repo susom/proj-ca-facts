@@ -257,13 +257,13 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
             }
 
             //2.  UPDATE AC DB record with time stamp and "claimed" main record project
-            $data = array(
+            $data_ac = array(
                 "record_id"             => $this->access_code_record,
                 "participant_used_id"   => $next_id,
                 "participant_used_date" => date("Y-m-d H:i:s")
 
             );
-            $r    = \REDCap::saveData($this->access_code_project, 'json', json_encode(array($data)) );
+            $r    = \REDCap::saveData($this->access_code_project, 'json', json_encode(array($data_ac)) );
         }     
         
         $data["record_id"] = $next_id;
