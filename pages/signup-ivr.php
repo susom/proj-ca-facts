@@ -346,9 +346,9 @@ if(isset($_POST["CallStatus"]) && $_POST["CallStatus"] == "in-progress"){
 		
 		//TODO - SAVE AFTER INITIAL CONTACT
 		// STORE THE PARTIAL RECORD
-		$all_vars = $module->getTempStorage($temp_call_storage_key);
-		$module->emDebug( "We will do a preliminary SAVE of the IVR here after language select", $all_vars );
-		$module->IVRHandler($all_vars);
+		// $all_vars = $module->getTempStorage($temp_call_storage_key);
+		// $module->emDebug( "We will do a preliminary SAVE of the IVR here after language select", $all_vars );
+		// $module->IVRHandler($all_vars);
 
 		// GATHER RESPONSE FOR NEXT CALL/RESPONSE
 		$gather 	= $response->gather(['numDigits' => 1]); 
