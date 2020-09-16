@@ -237,41 +237,48 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
             $this->returnError("Error, no matching AC/ZIP combination found");
         }
         
-        //AT THIS POINT WE HAVE THE ACCESS CODE RECORD, IT HASNT BEEN ABUSED, IT HASNT YET BEEN CLAIMED
-        //0.  GET NEXT AVAIL ID IN MAIN PROJECT
-        $next_id = $this->getNextAvailableRecordId($this->main_project);
 
-        //1.  CREATE NEW RECORD, POPULATE these 2 fields
-        $data = array(
-            "record_id" => $next_id
-        );
+        $data = array();
+        if(!empty($address_data["participant_used_id"])){
+            // AC ALREADY USED, bUT SEND THE SURVEY URL ANYWAY
+            $next_id = $address_data["participant_used_id"];
+        }else{
+           //AT THIS POINT WE HAVE THE ACCESS CODE RECORD, IT HASNT BEEN ABUSED, IT HASNT YET BEEN CLAIMED
+            //0.  GET NEXT AVAIL ID IN MAIN PROJECT
+            $next_id = $this->getNextAvailableRecordId($this->main_project);
+
+            if($address_data){
+                foreach($address_data as $k => $v){
+                    if(in_array($k, array("record_id","participant_used_id","participant_used_date","usage_attempts","ca_facts_access_codes_complete"))){
+                        continue;
+                    }
+                    $data[$k] = $v;
+                }
+            }
+
+            //2.  UPDATE AC DB record with time stamp and "claimed" main record project
+            $data = array(
+                "record_id"             => $this->access_code_record,
+                "participant_used_id"   => $next_id,
+                "participant_used_date" => date("Y-m-d H:i:s")
+
+            );
+            $r    = \REDCap::saveData($this->access_code_project, 'json', json_encode(array($data)) );
+        }     
+        
+        $data["record_id"] = $next_id;
+
         foreach($call_vars as $rc_var => $rc_val){
             if(in_array($rc_var, array("lang","speaker","accent","action","zip"))){
                 continue;
             }
             $data[$rc_var] = $rc_val;
         }
-        if($address_data){
-            foreach($address_data as $k => $v){
-                if(in_array($k, array("record_id","participant_used_id","participant_used_date","usage_attempts","ca_facts_access_codes_complete"))){
-                    continue;
-                }
-                $data[$k] = $v;
-            }
-        }
         $data["ivr_intake"] = 1;
+
         $r    = \REDCap::saveData($this->main_project, 'json', json_encode(array($data)) );
-        $this->emDebug("DID IT SAVE???", $r, $data);
-
-        //2.  UPDATE AC DB record with time stamp and "claimed" main record project
-        $data = array(
-            "record_id"             => $this->access_code_record,
-            "participant_used_id"   => $next_id,
-            "participant_used_date" => date("Y-m-d H:i:s")
-
-        );
-        $r    = \REDCap::saveData($this->access_code_project, 'json', json_encode(array($data)) );
-
+        $this->emDebug("DID IT REALLY SAVE IVR ???", $r, $data);
+        
         return false;
     }
 
