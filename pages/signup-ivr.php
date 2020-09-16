@@ -250,9 +250,9 @@ if(isset($_POST["CallStatus"]) && $_POST["CallStatus"] == "in-progress"){
 			break;
 		}
 		//TODO - SAVE AGAIN HERE SO THAT WE CAN CAPTURE LANGAUGE + testPEOPLE THE MOST IMPORTANT PARTS
-		// STORE THE FULL RECORD
+		// STORE THE PARTIAL RECORD
 		$all_vars = $module->getTempStorage($temp_call_storage_key);
-		$module->emDebug( "We will do a preliminary SAVE of the IVR here", $all_vars );
+		$module->emDebug( "We will do a preliminary SAVE of the IVR here after test # people", $all_vars );
 		$module->IVRHandler($all_vars);
 
 		$module->setTempStorage($temp_call_storage_key , "action", "invitation-smartphone" );
@@ -345,6 +345,10 @@ if(isset($_POST["CallStatus"]) && $_POST["CallStatus"] == "in-progress"){
 		$module->setTempStorage($temp_call_storage_key , "action", "interest-thanks" );
 		
 		//TODO - SAVE AFTER INITIAL CONTACT
+		// STORE THE PARTIAL RECORD
+		$all_vars = $module->getTempStorage($temp_call_storage_key);
+		$module->emDebug( "We will do a preliminary SAVE of the IVR here after language select", $all_vars );
+		$module->IVRHandler($all_vars);
 
 		// GATHER RESPONSE FOR NEXT CALL/RESPONSE
 		$gather 	= $response->gather(['numDigits' => 1]); 
