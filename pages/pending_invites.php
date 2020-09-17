@@ -111,6 +111,7 @@ if($em_mode != "kit_order"){
     <br>
 
     <?php
+        $lang_pretty = array("English", "Spanish", "Vietnamese", "Chinese");
         $qrscan_src = $module->getUrl("docs/images/fpo_qr_bar.png");
         $label_src  = $module->getUrl("docs/images/ico_printlabel.png");
         $pending    = $module->getPendingInvites();
@@ -127,6 +128,7 @@ if($em_mode != "kit_order"){
             $dumphtml[] = "<td class='record_id'>". $invite["record_id"] ."</td>";
             $dumphtml[] = "<td class='ac'>". $invite["code"] ."</td>";
             $dumphtml[] = "<td class='addy'>". $addy_top . "<br>" . $addy_bot ."</td>";
+            $dumphtml[] = "<td class='lang'><b>". $lang_pretty[$invite["language"]-1] ."</b></td>";
             $dumphtml[] = "<td class='numkits'>". $invite["testpeople"] ."</td>";
             $dumphtml[] = "<td class='qrscan'>";
             if(!empty($booknumber)){
@@ -248,6 +250,7 @@ if($em_mode != "kit_order"){
         <th>Record Id</th>
         <th>Access Code</th>
         <th>Shipping Address</th>
+        <th>Language</th>
         <th># of Kits</th>
         <th>CLick and scan appropriate KitQR to obtain Household ID</th>
         </tr>
