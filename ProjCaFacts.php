@@ -869,9 +869,9 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
 
     /*
         CURL function to interact with SHipping APIs
-        List of Services : GET https://xpsshipper.com/restapi/v1/customers/12332135/services
-        Create new Order : PUT  https://xpsshipper.com/restapi/v1/customers/12332135/integrations/49446/orders/:orderId   (:orderId = Household id)
-        Get Shipping Label : GET  https://xpsshipper.com/restapi/v1/customers/12332135/shipments/:bookNumber/label/PNG   (:bookNumber = :orderId ???= Household id)
+        List of Services : GET https://xpsshipper.com/restapi/v1/customers/[]/services
+        Create new Order : PUT  https://xpsshipper.com/restapi/v1/customers/[]/integrations/[]/orders/:orderId   (:orderId = Household id)
+        Get Shipping Label : GET  https://xpsshipper.com/restapi/v1/customers/[]/shipments/:bookNumber/label/PNG   (:bookNumber = :orderId ???= Household id)
     */
     public function xpsCurl($api_url, $method="GET", $data=array(), $api_key=""){
         $api_key = $this->getProjectSetting('xpsship-api-key');
@@ -942,8 +942,8 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
            ,"receiver"              => array(
                 "name"          => $shipping_addy["name"]
                ,"company"       => ""
-               ,"address1"      => $shipping_addy["address_1"]
-               ,"address2"      => $shipping_addy["address_2"]
+               ,"address1"      => $shipping_addy["address1"]
+               ,"address2"      => $shipping_addy["address2"]
                ,"city"          => $shipping_addy["city"]
                ,"state"         => $shipping_addy["state"]
                ,"zip"           => $shipping_addy["zip"]
@@ -963,5 +963,68 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
 
        return $data;
     }    
+
+    /*
+        CREATE USPS RETURN LABEL
+        returns base64 Return Label, PostalROuting and Tracking Number
+    */
+    public function uspsReturnLabel($hh_id, $shipping_addy){
+        $merchant_id    = $this->getProjectSetting('usps-merchant-id');
+        $mid            = $this->getProjectSetting('usps-mid');
+
+        $usps_apiurl    = "https://returns.usps.com/Services/ExternalCreateReturnLabel.svc/ExternalCreateReturnLabel?externalReturnLabelRequest=";
+
+        $xml_arr        = array(
+             "CustomerName"         => $participant_id
+            ,"CustomerAddress1"     => $shipping_addy["address_1"]
+            ,"CustomerCity"         => $shipping_addy["city"]
+            ,"CustomerState"        => $shipping_addy["state"]
+            ,"CustomerZipCode"      => $shipping_addy["zip"]
+            ,"MerchantAccountID"    => $merchant_id
+            ,"MID"                  => $mid
+            ,"BlankCustomerAddress" => TRUE
+            ,"LabelFormat"          => "NOI"
+            ,"LabelDefinition"      => "4X6"
+            ,"ServiceTypeCode"      => "020"
+            ,"MerchandiseDescription"       => "Exempt Human Specimen"
+            ,"AddressOverrideNotification"  => TRUE
+            ,"CallCenterOrSelfService"      => "Customer"
+            ,"ImageType"                    => "PNG"
+        );
+
+        if(!empty($shipping_addy["address_2"])){
+            $xml_arr["CustomerAddress2"] = $shipping_addy["address_2"];
+        }
+
+        $xmlDoc = new \DOMDocument();
+        $root   = $xmlDoc->appendChild($xmlDoc->createElement("ExternalReturnLabelRequest"));
+        foreach($xml_arr as $key => $val){
+            $root->appendChild($xmlDoc->createElement($key,$val));
+        }
+ 
+        //make the output pretty
+        $qs_params = urlencode( $xmlDoc->saveHTML() );
+
+        $ch = curl_init($usps_apiurl.$qs_params);
+
+		curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, FALSE);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, FALSE);
+		curl_setopt($ch, CURLOPT_TIMEOUT, 105200);
+		curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+		curl_setopt($ch, CURLOPT_HEADER, 0);
+        curl_setopt($ch, CURLOPT_VERBOSE, 0);
+        
+        $info 	= curl_getinfo($ch);
+		$result = curl_exec($ch);
+        curl_close($ch);
+
+        $new    = simplexml_load_string($result); 
+  
+        // Convert into json 
+        $con    = json_encode($new); 
+  
+        // Convert into associative array 
+        return json_decode($con, true); 
+    }
 }
 ?>

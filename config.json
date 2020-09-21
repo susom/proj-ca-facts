@@ -109,14 +109,14 @@
 			"type": "text"
 		},
 		{
-			"key": "usps-api-key",
-			"name": "<b>USPS API Key</b>",
+			"key": "usps-merchant-id",
+			"name": "<b>USPS merchant id</b>",
 			"required": false,
 			"type": "text"
 		},
 		{
-			"key": "usps-client-id",
-			"name": "<b>USPS Client ID</b>",
+			"key": "usps-mid",
+			"name": "<b>USPS MID</b>",
 			"required": false,
 			"type": "text"
 		},

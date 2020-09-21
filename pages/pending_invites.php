@@ -2,7 +2,6 @@
 namespace Stanford\ProjCaFacts;
 /** @var \Stanford\ProjCaFacts\ProjCaFacts $module */
 
-
 $xps_client_id      = $module->getProjectSetting('xpsship-client-id');;
 $xps_integration_id = $module->getProjectSetting('xpsship-integration-id');;
 
@@ -28,8 +27,8 @@ if(!empty($_POST["action"])){
                 $fake_hh_id = "1234567898";
                 $shipping_addy  = array(
                     "name" => "CA-FACTS Participant"
-                    ,"address_1" => $addy1
-                    ,"address_2" => $addy2
+                    ,"address1" => $addy1
+                    ,"address2" => $addy2
                     ,"city" => $city
                     ,"state" => $state
                     ,"zip" => $zip );
@@ -66,7 +65,29 @@ if(!empty($_POST["action"])){
                 $q          = \REDCap::getData('json', array($record_id) , $fields);
                 $results    = json_decode($q,true);
             }
-            $result = array("address" => $results);
+            
+            $module->emDebug("shipping data", $shipping_data);
+
+        break;
+
+        case "printReturnLabel":
+            $record_id  = $_POST["record_id"] ?? null;
+            $result     = array();
+            if($record_id){
+                $fields     = array("record_id","kit_household_code",  "address_1" ,"address_2","city", "state", "zip");
+                $q          = \REDCap::getData('json', array($record_id) , $fields);
+                $results    = json_decode($q,true);
+                $record     = current($results);
+
+                $result     = $module->uspsReturnLabel($record["kit_household_code"], array("address" => $record));
+
+                $data   = array(
+                    "record_id"             => $record_id,
+                    "tracking_number"       => $result["TrackingNumber"]
+                );
+                $r      = \REDCap::saveData('json', json_encode(array($data)) );
+
+            }
         break;
 
         default:
@@ -158,7 +179,8 @@ if($em_mode != "kit_order"){
                 
                 if($booknumber != "pending"){
                     $xps_return  = $module->xpsCurl("https://xpsshipper.com/restapi/v1/customers/$xps_client_id/shipments/$booknumber/label/PDF");
-                    $dumphtml[] = '<a href="#" class="printlabel">Print Label</a>';
+                    $dumphtml[] = '<a href="#" class="printlabel" data-recordid='.$invite["record_id"].'>Print Label</a>';
+                    $dumphtml[] = '<a href="#" class="printReturnlabel" data-recordid='.$invite["record_id"].'>Print Return Label</a>';
                 }
             }else{
                 $dumphtml[] = "<input type='text' name='kit_qr_code' 
@@ -226,11 +248,15 @@ if($em_mode != "kit_order"){
             cursor:pointer;
         }
        
-        .qrscan .printlabel{
+        .qrscan .printlabel,
+        .qrscan .printReturnlabel{
             text-decoration:none;
+            display:block;
             margin-left: 20px;
+            margin-bottom:6px;
         }
-        .qrscan .printlabel:before {
+        .qrscan .printlabel:before,
+        .qrscan .printReturnlabel:before {
             content:"";
             position:absolute;
             width:20px; height:20px;
@@ -349,7 +375,35 @@ if($em_mode != "kit_order"){
                     console.log("something failed");
                 });
             });
+
+            // PRINT LABEL
+            $(".qrscan").on("click", ".printReturnlabel", function(e){
+                e.preventDefault();
+                var record_id = $(this).data("recordid");
+
+                $.ajax({
+                    method: 'POST',
+                    data: {
+                            "action"    : "printReturnLabel",
+                            "record_id" : record_id
+                    },
+                    dataType: 'json'
+                }).done(function (result) {
+                    var base64_return_label = result["ReturnLabel"];
+                    // console.log("label pdf", base64_return_label);
+
+                    let pdfWindow = window.open("")
+                    pdfWindow.document.write(
+                        "<iframe width='100%' height='100%' src='data:application/pdf;base64, " +
+                        encodeURI(base64_return_label) + "'></iframe>"
+                    )
+                }).fail(function () {
+                    console.log("something failed");
+                });
+            });
         });
     </script>
 </div>
-<?php } ?>
+<?php } 
+
+?>
