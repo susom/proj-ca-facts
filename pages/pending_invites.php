@@ -74,8 +74,7 @@ if(!empty($_POST["action"])){
                 $results    = json_decode($q,true);
                 $record     = current($results);
                 
-                $result     = $module->uspsReturnLabel($record["kit_household_code"], array("address" => $record));
-
+                $result     = $module->uspsReturnLabel($record["kit_household_code"], $record);
                 $data   = array(
                     "record_id"                 => $record_id,
                     "return_tracking_number"    => $result["TrackingNumber"]

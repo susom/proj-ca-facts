@@ -987,7 +987,7 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
             ,"LabelDefinition"      => "4X6"
             ,"ServiceTypeCode"      => "020"
             ,"MerchandiseDescription"       => "Exempt Human Specimen"
-            ,"PackageInformation"   => "RC-".$shipping_addy["record_id"]
+            ,"PackageInformation"   => "RC".$shipping_addy["record_id"]
             ,"AddressOverrideNotification"  => TRUE
             ,"CallCenterOrSelfService"      => "Customer"
             ,"ImageType"                    => "PNG"
