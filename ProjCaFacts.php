@@ -873,7 +873,7 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
         Create new Order : PUT  https://xpsshipper.com/restapi/v1/customers/[]/integrations/[]/orders/:orderId   (:orderId = Household id)
         Get Shipping Label : GET  https://xpsshipper.com/restapi/v1/customers/[]/shipments/:bookNumber/label/PNG   (:bookNumber = :orderId ???= Household id)
     */
-    public function xpsCurl($api_url, $method="GET", $data=array(), $api_key=""){
+    public function xpsCurl($api_url, $method="GET", $data=array()){
         $api_key = $this->getProjectSetting('xpsship-api-key');
         
         
@@ -918,7 +918,7 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
             "orderId"               => $hh_id
            ,"orderDate"             => date("Y-m-d")
            ,"shippingService"       => "usps_first_class"
-           ,"shipperReference"      => "CA-FACTS / Exempt Human Specimen"
+           ,"shipperReference"      => "CA-FACTS / RC-" . $shipping_addy["recordid"]
            ,"contentDescription"    => $testkits . " Test Kits"
            ,"weightUnit"            => "lb"
            ,"orderNumber"           => $hh_id
@@ -954,9 +954,9 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
                     "weight" => $weight_in_lb[$testkits-1]
                    ,"insuranceAmount"   => null
                    ,"declaredValue"     => null
-                   ,"length"            => null
-                   ,"width"             => null
-                   ,"height"            => null
+                   ,"length"            => "6"
+                   ,"width"             => "6"
+                   ,"height"            => "2"
                 )
            )
         );
@@ -987,6 +987,7 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
             ,"LabelDefinition"      => "4X6"
             ,"ServiceTypeCode"      => "020"
             ,"MerchandiseDescription"       => "Exempt Human Specimen"
+            ,"PackageInformation"   => "RC-".$shipping_addy["record_id"]
             ,"AddressOverrideNotification"  => TRUE
             ,"CallCenterOrSelfService"      => "Customer"
             ,"ImageType"                    => "PNG"
