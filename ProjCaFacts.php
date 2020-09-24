@@ -426,7 +426,7 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
     public function getPendingInvites(){
         $params = array(
             "return_format" => "json",
-            "fields" => ["record_id","testpeople", "code", "address_1" ,"address_2","city", "state", "zip", "kit_household_code", "xps_booknumber", "language"],
+            "fields" => ["record_id","testpeople", "code", "address_1" ,"address_2","city", "state", "zip", "kit_household_code", "xps_booknumber", "language", "smartphone", "smartphone_s", "smartphone_v", "smartphone_m"],
             "filterLogic" => "([access_code] != '' AND [kit_household_code] = '' AND [testpeople] != '') OR ([xps_booknumber] != '' AND [kit_shipped_date] = '')",
         );
 
@@ -912,7 +912,7 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
         Create ORDER for XPS 
     */
     public function xpsData($hh_id, $testkits, $shipping_addy){
-        $weight_in_lb = array("0.5", "0.56", "0.63");
+        $weight_in_lb = array("0.325", "0.388", "0.475");
 
         $data = array(
             "orderId"               => $hh_id
