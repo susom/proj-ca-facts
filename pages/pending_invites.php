@@ -25,7 +25,7 @@ if(!empty($_POST["action"])){
             if($hh_id){
                 // TODO THIS IS WHERE I FAKE IT UNTIL WE GO LIVE?
                 // be careful here, XPS wont let reuse even of canceled orders
-                // $fake_hh_id = "2234567894";
+                // $fake_hh_id = "2234567895";
                 // $hh_id      = $fake_hh_id;
 
                 $shipping_addy  = array(
@@ -155,13 +155,15 @@ if($em_mode != "kit_order"){
             $smartphone_l   = "smartphone" . $lang_suffix[$language-1];
             $paper_yn       = $invite[$smartphone_l] == 1 ? "NO" : "YES";
 
+            $testpeople_lang = "testpeople" . $lang_suffix[$language-1];
+
             $addy_bot   = $invite["city"] . ", " . $invite["state"] . " " . $invite["zip"];
             $dumphtml[] = "<tr>";
             $dumphtml[] = "<td class='record_id'><a href='https://redcap.stanford.edu/redcap_v10.2.1/DataEntry/index.php?pid=19070&page=shipping&id=".$invite["record_id"]."&event_id=114529'><b>". $invite["record_id"] ."</b></a></td>";
             $dumphtml[] = "<td class='ac'>". $invite["code"] ."</td>";
             $dumphtml[] = "<td class='addy'>". $addy_top . "<br>" . $addy_bot ."</td>";
             $dumphtml[] = "<td class='lang $paper_yn'><b>$paper_yn</b> (". $lang_pretty[$language-1] .")</td>";
-            $dumphtml[] = "<td class='numkits'>". $invite["testpeople"] ."</td>";
+            $dumphtml[] = "<td class='numkits'>". $invite[$testpeople_lang] ."</td>";
             $dumphtml[] = "<td class='qrscan'>";
             if(!empty($booknumber)){
                 //if just intaked, wont have booking number
@@ -197,7 +199,7 @@ if($em_mode != "kit_order"){
             }else{
                 $dumphtml[] = "<input type='text' name='kit_qr_code' 
                 data-addy1='".$invite["address_1"]."' data-addy2='".$invite["address_2"]."' data-city='".$invite["city"]."' data-state='".$invite["state"]."' data-zip='".$invite["zip"]."'
-                data-numkits='". $invite["testpeople"] ."' data-recordid='".$invite["record_id"]."' id='record_".$invite["record_id"]."'/><label for='record_".$invite["record_id"]."'></label>";
+                data-numkits='". $invite[$testpeople_lang] ."' data-recordid='".$invite["record_id"]."' id='record_".$invite["record_id"]."'/><label for='record_".$invite["record_id"]."'></label>";
             }
             $dumphtml[] = "</td>";
             $dumphtml[] = "<td class='kit_complete'><input type='checkbox' class='kit_complete' data-recordid='".$invite["record_id"]."' /></td>";

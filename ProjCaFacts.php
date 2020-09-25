@@ -426,7 +426,7 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
     public function getPendingInvites(){
         $params = array(
             "return_format" => "json",
-            "fields" => ["record_id","testpeople", "code", "address_1" ,"address_2","city", "state", "zip", "kit_household_code", "xps_booknumber", "language", "smartphone", "smartphone_s", "smartphone_v", "smartphone_m"],
+            "fields" => ["record_id","testpeople", "code", "address_1" ,"address_2","city", "state", "zip", "kit_household_code", "xps_booknumber", "language", "smartphone", "smartphone_s", "smartphone_v", "smartphone_m", "testpeople_s","testpeople_v", "testpeople_m"],
             "filterLogic" => "([access_code] != '' AND [kit_household_code] = '' AND ([testpeople] != '' OR [testpeople_s] != '' OR [testpeople_v] != '' OR [testpeople_m] != '' )) OR ([xps_booknumber] != '' AND [kit_shipped_date] = '')",
         );
 
@@ -918,7 +918,7 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
             "orderId"               => $hh_id
            ,"orderDate"             => date("Y-m-d")
            ,"shippingService"       => "usps_first_class"
-           ,"shipperReference"      => "CA-FACTS / RC-" . $shipping_addy["recordid"]
+           ,"shipperReference"      => "CA-FACTS / RC" . $shipping_addy["recordid"]
            ,"contentDescription"    => $testkits . " Test Kits"
            ,"weightUnit"            => "lb"
            ,"orderNumber"           => $hh_id
