@@ -25,7 +25,7 @@ if(!empty($_POST["action"])){
             if($hh_id){
                 // TODO THIS IS WHERE I FAKE IT UNTIL WE GO LIVE?
                 // be careful here, XPS wont let reuse even of canceled orders
-                // $fake_hh_id = "2234567896";
+                // $fake_hh_id = "2234567897";
                 // $hh_id      = $fake_hh_id;
 
                 $shipping_addy  = array(

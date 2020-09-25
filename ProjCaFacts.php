@@ -917,7 +917,7 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
         $data = array(
             "orderId"               => $hh_id
            ,"orderDate"             => date("Y-m-d")
-           ,"shippingService"       => "Standard"
+           ,"shippingService"       => "usps_first_class"
            ,"shipperReference"      => "CA-FACTS / RC" . $shipping_addy["recordid"]
            ,"contentDescription"    => $testkits . " Test Kits"
            ,"weightUnit"            => "lb"
