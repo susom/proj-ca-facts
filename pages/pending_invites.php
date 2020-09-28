@@ -287,10 +287,11 @@ if($em_mode != "kit_order"){
         }
 
         .lang.YES{
-            color:deeppink
+            color:mediumblue;
+            font-size:150%;
         }
         .lang.NO{
-            color:#999;
+            color:#ccc;
         }
     </style>
     <table class="table table-bordered">
