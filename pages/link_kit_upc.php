@@ -193,7 +193,7 @@ if($em_mode != "kit_submission"){
 
     <a href="<?=$link_kit_upc?>" id="reset_link_upc" type="button" class="btn btn-lg btn-primary">Scan/Link a new Test Kit</a>
  
-    <br><br><br><br><br><br>
+    <!-- <br><br><br><br><br><br>
     <br><br><br><br><br><br>
     
     <h4>Main Head of HouseHold KIT QR?</h4>
@@ -206,7 +206,7 @@ if($em_mode != "kit_submission"){
     <textarea>https://artemis.gauss.com/?c=15e1ae052c7b5cd4cfcbf6d9322c995a1a2a7e8dce32d88d0130f2a98a31f109a89b53c4fb72029715df6c8cd1020cb87dc3ab642776af9648a50172731981c493bae3a52a020c8e3a2e4da589b77afc4d314588c68ade9#/partner-verification?c=15e1ae052c7b5cd4cfcbf6d9322c995a1a2a7e8dce32d88d0130f2a98a31f109a89b53c4fb72029715df6c8cd1020cb87dc3ab642776af9648a50172731981c493bae3a52a020c8e3a2e4da589b77afc4d314588c68ade9</textarea>
 
     <h4>Pretend UPC</h4>
-    <textarea>1234567890</textarea>
+    <textarea>1234567890</textarea> -->
     <script>
         $(document).ready(function(){
             // UI UX 
