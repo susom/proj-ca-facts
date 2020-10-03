@@ -68,14 +68,14 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
 		// THIS IS SO IMPORTANT FOR DOING THE DAGS
         // $_SESSION["username"] = \ExternalModules\ExternalModules::getUsername();
         
-        $proj_links = array("CA-FACTS Pending Invites Report", "CA-FACTS Bulk Upload Lab Results","CA-FACTS Test Kit / UPC Linkage","CA-FACTS Return Scan");
+        $proj_links = array("CA-FACTS Pending Invites Report", "CA-FACTS Bulk Upload Lab Results","CA-FACTS Test Kit / UPC Linkage","CA-FACTS Return Scan","CA-FACTS Unique Acess Code Generator");
         switch($project_id){
             case $this->main_project:
-                $hide_links = array(1,2,3);
+                $hide_links = array(1,2,3,4);
             break;
 
             case $this->kit_submission_project:
-                $hide_links = array(0);
+                $hide_links = array(0,4);
             break;
 
             default:
@@ -1098,5 +1098,30 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
         // Convert into associative array 
         return json_decode($con, true); 
     }
+
+    /*
+        Generate UNIQUE AC, Exclude already used ones. 
+        returns base64 Return Label, PostalROuting and Tracking Number
+    */
+    public function UniqueRandomNumbersWithinRange($min, $max, $quantity) {
+
+        $fields     = array("access_code");
+        $q          = \REDCap::getData('json', null , $fields);
+        $results    = json_decode($q,true);
+
+        $blacklist = array();
+        if(!empty($results)){
+            foreach($results as $result){
+                array_push($blacklist, $result["access_code"]);
+            }
+        }
+
+        $numbers    = range($min, $max);
+        $uniques    = array_diff($numbers, $blacklist);
+
+        shuffle($uniques);
+        return array_slice($uniques, 0, $quantity);
+    }
+
 }
 ?>

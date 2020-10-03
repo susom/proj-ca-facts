@@ -55,6 +55,11 @@
 	        "name": "CA-FACTS Return Scan",
 	        "icon": "gear",
 	        "url": "pages/kit_return_scan.php"
+		  },
+		  {
+	        "name": "CA-FACTS Unique Acess Code Generator",
+	        "icon": "gear",
+	        "url": "pages/unique_ac.php"
 	      }
 		],
 		"control-center": [
