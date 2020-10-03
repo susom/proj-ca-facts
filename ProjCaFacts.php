@@ -60,6 +60,46 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
         $this->getAllSupportProjects();
     }
 
+    function redcap_every_page_top($project_id){
+		// every page load
+		// parse URL for id 
+		// update the flowsheet launch url to pass in info for id 
+
+		// THIS IS SO IMPORTANT FOR DOING THE DAGS
+        // $_SESSION["username"] = \ExternalModules\ExternalModules::getUsername();
+        
+        $proj_links = array("CA-FACTS Pending Invites Report", "CA-FACTS Bulk Upload Lab Results","CA-FACTS Test Kit / UPC Linkage","CA-FACTS Return Scan");
+        switch($project_id){
+            case $this->main_project:
+                $hide_links = array(1,2,3);
+            break;
+
+            case $this->kit_submission_project:
+                $hide_links = array(0);
+            break;
+
+            default:
+                $hide_links = array(0, 1, 2,3);
+            break;
+        }
+		?>
+		<script>
+			$(document).ready(function(){
+                var proj_links = <?=json_encode($proj_links)?>;
+                var hide_links = <?=json_encode($hide_links)?>;
+
+                for(var i in hide_links){
+                    var hide_text = proj_links[hide_links[i]];
+                    $("a:contains('"+hide_text+"')").remove();
+                }
+
+                var move_this = $("a:contains('CA-FACTS Invitation API Instructions')").parent("div");
+                move_this.parent().prepend(move_this);
+			});
+		</script>
+		<?php
+    }
+    
     /**
      * Print all enabled projects with this EM
      */
@@ -139,6 +179,37 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
         }
     }
 
+    /**
+     * Get record_id by USPS tracking
+     * @return bool
+     */
+    public function findMainRecordByTracking($usps_track){
+        $filter     = "[return_tracking_number] = '" . $usps_track . "' and [kit_returned_date] = ''";
+        $fields     = array("record_id");
+        $q          = \REDCap::getData($this->main_project, 'json', null , $fields  , null, null, false, false, false, $filter);
+        $results    = json_decode($q,true);
+
+        $record_id  = null;
+        if(!empty($results)){
+            $result     = current($results);
+            $record_id  = $result["record_id"];
+        }
+
+        return $record_id;
+    }
+
+    /**
+     * when shipping boxes returned.
+     * @return bool
+     */
+    public function datestampKitReturn($record_id){
+        $data   = array(
+            "record_id"                 => $record_id,
+            "kit_returned_date"         => Date("Y-m-d")
+        );
+        $this->emDebug("save return date data", $data);
+        $r      = \REDCap::saveData($this->main_project,  'json', json_encode(array($data)) );
+    }
     /**
      * Parses request and sets up object
      * @return bool request valid

@@ -22,6 +22,7 @@
 	],
 
 	"permissions": [
+		"redcap_every_page_top"
 	],
 
 	"framework-version": 4,
@@ -49,8 +50,12 @@
 	        "name": "CA-FACTS Bulk Upload Lab Results",
 	        "icon": "gear",
 	        "url": "pages/upload_results.php"
+		  },
+		  {
+	        "name": "CA-FACTS Return Scan",
+	        "icon": "gear",
+	        "url": "pages/kit_return_scan.php"
 	      }
-		  
 		],
 		"control-center": [
 	      {
@@ -65,6 +70,7 @@
         "pages/signup-ivr",
 		"pages/signup",
 		"pages/kitsubmission",
+		"pages/kit_return_scan",
 		"pages/upload_results",
 		"getAsset"
 	],

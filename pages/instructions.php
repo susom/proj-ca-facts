@@ -49,17 +49,6 @@ $XML_KS_PROJECT_TEMPLATE = $module->getUrl("docs/CAFACTSKITSUBMISSION_2020-06-23
         <p>Please configure the twilio phone number to callback the following url:</p>
         <pre><?php echo $module->getUrl("pages/signup-ivr.php",true, true ) ?></pre>
     <?php
-        }else{
-    ?>
-        <h4>Form Sign Up Endpoint</h4>
-        <p>To view this endpoint URL please go to the EM instructions for the main project (kit_order)</p>
-        
-        <br>
-        <br>
-
-        <h4>Twilio Callback Endpoint</h4>
-        <p>To view this endpoint URL please go to the EM instructions for the main project (kit_order)</p>
-    <?php
         }
     ?>
 </div>

@@ -154,6 +154,7 @@ if($em_mode != "kit_order"){
             $language       = $invite["language"];
             $smartphone_l   = "smartphone" . $lang_suffix[$language-1];
             $paper_yn       = $invite[$smartphone_l] == 1 ? "NO" : "YES";
+            $lang_yn        = $lang_pretty[$language-1] == "English" ? "YES" : "NO";
 
             $testpeople_lang = "testpeople" . $lang_suffix[$language-1];
 
@@ -162,7 +163,8 @@ if($em_mode != "kit_order"){
             $dumphtml[] = "<td class='record_id'><a href='https://redcap.stanford.edu/redcap_v10.2.1/DataEntry/index.php?pid=19070&page=shipping&id=".$invite["record_id"]."&event_id=114529'><b>". $invite["record_id"] ."</b></a></td>";
             $dumphtml[] = "<td class='ac'>". $invite["code"] ."</td>";
             $dumphtml[] = "<td class='addy'>". $addy_top . "<br>" . $addy_bot ."</td>";
-            $dumphtml[] = "<td class='lang $paper_yn'><b>$paper_yn</b> (". $lang_pretty[$language-1] .")</td>";
+            $dumphtml[] = "<td class='paper $paper_yn'><b>$paper_yn</b></td>";
+            $dumphtml[] = "<td class='lang $lang_yn'>". $lang_pretty[$language-1] ."</td>";
             $dumphtml[] = "<td class='numkits'>". $invite[$testpeople_lang] ."</td>";
             $dumphtml[] = "<td class='qrscan'>";
             if(!empty($booknumber)){
@@ -286,11 +288,19 @@ if($em_mode != "kit_order"){
             display: block;
         }
 
-        .lang.YES{
+        .paper.YES{
             color:mediumblue;
             font-size:150%;
         }
+        .paper.NO{
+            color:#ccc;
+        }
+
         .lang.NO{
+            color:mediumblue;
+            font-size:150%;
+        }
+        .lang.YES{
             color:#ccc;
         }
     </style>
@@ -300,7 +310,8 @@ if($em_mode != "kit_order"){
         <th>Record Id</th>
         <th>Access Code</th>
         <th>Shipping Address</th>
-        <th>Include Paper Questionaire? Language</th>
+        <th>Include Paper Questionaire</th>
+        <th>Language</th>
         <th># of Kits</th>
         <th>CLick and scan appropriate KitQR to obtain Household ID</th>
         <th>Complete?</th>
