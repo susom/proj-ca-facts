@@ -17,7 +17,6 @@ if(!empty($_POST["action"])){
             $field_type  = $_POST['field_type'];
             if($field_type == "file"){
                 $file       = current($_FILES);
-                $module->emDebug("killll me");
                 $module->parseCSVtoDB_temp($file);
             }
         break;

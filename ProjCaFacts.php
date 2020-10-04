@@ -979,8 +979,8 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
             );
         }        
 
-        $r  = \REDCap::saveData($this->access_code_project, 'json', json_encode(array($data)) );
-        $this->emDebug("did thisfucking thing parse and save?", $headers, $data[0]);
+        $r  = \REDCap::saveData($this->access_code_project, 'json', json_encode($data) );
+        $this->emDebug("did thisfucking thing parse and save?", $headers, $data);
         return;
     }
 
