@@ -94,10 +94,10 @@ $em_mode = $module->getProjectSetting("em-mode");
     <br>
     <br>
 
-    <form method="post" enctype="multipart/form-data">
+    <!-- <form method="post" enctype="multipart/form-data">
     <label for='upload_csv'></label><input type='file' name='upload_csv' id='upload_csv' placeholder="one time parse CSV"/>
     </form>
-    <a href="#" id="upload_btn" type="button" class="btn btn-lg btn-light">Upload and Process File</a>
+    <a href="#" id="upload_btn" type="button" class="btn btn-lg btn-light">Upload and Process File</a> -->
     <script>
         $(document).ready(function(){
             // UI UX 
