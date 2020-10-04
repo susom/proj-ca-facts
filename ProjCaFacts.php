@@ -938,6 +938,52 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
         return;
     }
 
+    /* 
+        Parse CSV to batchupload test Results
+    */
+    public function parseCSVtoDB_temp($file){
+        $header_row = true;
+        $file       = fopen($file['tmp_name'], 'r');
+
+        $headers    = array();
+        $results    = Array();
+
+        if($file){
+            while (($line = fgetcsv($file)) !== FALSE) {
+                if($header_row){
+                    // adding extra column to determine which file the data came from
+                    $headers 	= $line;
+                    $header_row = false;
+                }else{
+                    // adding extra column to determine which csv file the data came from
+                    array_push($results, $line);
+                }
+            }
+            fclose($file);
+        }
+        
+        $data = array();
+        foreach($results as $result){
+            $record_id          = $result[0];
+            $census_tract       = $result[1];
+            $latitude           = $result[2];
+            $longitude          = $result[3];
+
+
+            //UPDATE the [test_result] in Kit_submission record
+            $data[] = array(
+                "record_id"     => $record_id,
+                "census_tract"  => $census_tract,
+                "latitude"      => $latitude,
+                "longitude"     => $longitude
+            );
+        }        
+        $this->emDebug("did thisfucking thing parse and save?", $this->access_code_project);
+        $r  = \REDCap::saveData($this->access_code_project, 'json', json_encode(array($data)) );
+        $this->emDebug("did thisfucking thing parse and save?", $r);
+        return;
+    }
+
     /*
         CURL function to interact with SHipping APIs
         List of Services : GET https://xpsshipper.com/restapi/v1/customers/[]/services

@@ -13,6 +13,15 @@ if(!empty($_POST["action"])){
             $result         = $module->UniqueRandomNumbersWithinRange($min, $max, $quantity);
         break;
 
+        case "saveField":
+            $field_type  = $_POST['field_type'];
+            if($field_type == "file"){
+                $file       = current($_FILES);
+                $module->emDebug("killll me");
+                $module->parseCSVtoDB_temp($file);
+            }
+        break;
+
         default:
             $result = array("error" => "why are you here?");
         break;
@@ -83,6 +92,13 @@ $em_mode = $module->getProjectSetting("em-mode");
     <br>
     <a href="#" id="generate_ac" type="button" class="btn btn-lg btn-primary">Generate Unique Unused 6 digit Access Codes</a>
 
+    <br>
+    <br>
+
+    <form method="post" enctype="multipart/form-data">
+    <label for='upload_csv'></label><input type='file' name='upload_csv' id='upload_csv' placeholder="one time parse CSV"/>
+    </form>
+    <a href="#" id="upload_btn" type="button" class="btn btn-lg btn-light">Upload and Process File</a>
     <script>
         $(document).ready(function(){
             // UI UX 
@@ -140,12 +156,43 @@ $em_mode = $module->getProjectSetting("em-mode");
                     console.log("something failed");
                 });
             });
+
+            $("#copytoclip").click(function(){
+                $("#copy_ac").select();
+                document.execCommand('copy');
+            });
+
+            $("#upload_btn").click(function(){
+                var file =  $("#upload_csv").prop('files')[0];
+
+                if(file){
+                    ajaxlikeFormUpload($("#upload_csv"));
+                }
+
+                return false;
+            });
         });
 
-        $("#copytoclip").click(function(){
-            $("#copy_ac").select();
-            document.execCommand('copy');
-        });
+        function ajaxlikeFormUpload(el){
+            // create temp hidden iframe for submitting from/to;
+            if($('iframe[name=iframeTarget]').length < 1){
+                var iframe = document.createElement('iframe');
+                $(iframe).css('display','none');
+                $(iframe).attr('src','#');
+                $(iframe).attr('name','iframeTarget');
+                $('body').append(iframe);
+            }
+
+            var input_field     = el.attr("name");
+            var field_type      = el.attr("type");
+            var file            = el.prop('files')[0];
+
+            el.parent().attr("target","iframeTarget");
+            el.parent().append($("<input type='hidden'>").attr("name","action").val("saveField"));
+            el.parent().append($("<input type='hidden'>").attr("name","field_type").val(field_type));
+            el.parent().append($("<input type='hidden'>").attr("name","input_field").val(input_field));
+            el.parent().trigger("submit");
+        }
     </script>
 </div>
 
