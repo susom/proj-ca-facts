@@ -8,6 +8,8 @@ if(!empty($_POST["action"])){
     switch($action){
         case "kitReturned":
             $usps_track     = $_POST["usps_track"] ?? null;
+            $usps_track     = str_replace("420943055102","",$usps_track);
+
             if($usps_track){
                 // find record with usps_track = usps_track
                 $record_id = $module->findMainRecordByTracking($usps_track);

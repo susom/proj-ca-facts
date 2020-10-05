@@ -17,7 +17,7 @@ if(!empty($_POST["action"])){
             $field_type  = $_POST['field_type'];
             if($field_type == "file"){
                 $file       = current($_FILES);
-                $module->parseCSVtoDB_temp($file);
+                $result     = $module->parseCSVtoDB_generic($file);
             }
         break;
 
@@ -94,10 +94,14 @@ $em_mode = $module->getProjectSetting("em-mode");
     <br>
     <br>
 
-    <!-- <form method="post" enctype="multipart/form-data">
+    <hr>
+    <h6>Generic CSV Uploader [record_id, rc_var1, rc_var2, rc_var3, etc etc]</h6>
+    <br>
+    <form method="post" enctype="multipart/form-data">
     <label for='upload_csv'></label><input type='file' name='upload_csv' id='upload_csv' placeholder="one time parse CSV"/>
     </form>
-    <a href="#" id="upload_btn" type="button" class="btn btn-lg btn-light">Upload and Process File</a> -->
+    <br><br>
+    <a href="#" id="upload_btn" type="button" class="btn btn-lg btn-warning">Upload and Process File</a>
     <script>
         $(document).ready(function(){
             // UI UX 

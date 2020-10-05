@@ -941,7 +941,7 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
     /* 
         Parse CSV to batchupload test Results
     */
-    public function parseCSVtoDB_temp($file){
+    public function parseCSVtoDB_generic($file){
         $header_row = true;
         $file       = fopen($file['tmp_name'], 'r');
 
@@ -962,26 +962,21 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
             fclose($file);
         }
         
-        $data = array();
+        $header_count   = count($headers);
+        $data           = array();
         foreach($results as $result){
-            $record_id          = $result[0];
-            $census_tract       = $result[1];
-            $latitude           = $result[2];
-            $longitude          = $result[3];
-
-
-            //UPDATE the [test_result] in Kit_submission record
-            $data[] = array(
-                "record_id"     => $record_id,
-                "census_tract"  => $census_tract,
-                "latitude"      => $latitude,
-                "longitude"     => $longitude
-            );
+            $temp   = array();
+            for($i  = 0; $i < $header_count; $i++){
+                $var_name = $headers[$i];
+                $temp[$var_name] = $result[$i];
+            }
+            $this->emDebug("What the fuck?", $temp);
+            $data[] = $temp;
         }        
 
-        $r  = \REDCap::saveData($this->access_code_project, 'json', json_encode($data) );
-        $this->emDebug("did thisfucking thing parse and save?", $headers, $data);
-        return;
+        $r  = \REDCap::saveData('json', json_encode($data) );
+        $this->emDebug("did this parse and save?", $r);
+        return $r;
     }
 
     /*
