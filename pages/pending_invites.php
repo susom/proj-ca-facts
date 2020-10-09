@@ -52,7 +52,7 @@ if(!empty($_POST["action"])){
                 $r      = \REDCap::saveData($pid, 'json', json_encode(array($data)) );
 
                 // Pre Generates Records in Kit Submission Project
-                $module->linkKits($record_id, $testpeople, $hh_id, $part_id);
+                // $module->linkKits($record_id, $testpeople, $hh_id, $part_id);
             } 
         break;
 
