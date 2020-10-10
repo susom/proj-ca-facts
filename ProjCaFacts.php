@@ -410,81 +410,66 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
 
         if(!empty($houseid)){
             $part_id    = $houseid["survey_id"];
+            $hh_id      = $houseid["household_id"];
 
-            $filter     = "[household_id] = '" . $houseid["household_id"] . "'";
-            $fields     = array("household_record_id","kit_upc_code","household_id","participant_id","record_id");
+        // $part_id    = "1WBDR9WV24RVMHL5";
+        // $hh_id      = "JZ53NLZ9FWKRG917";
+            
+            // GET MAIN PROJECT RECORD ID
+            $filter     = "[kit_household_code] = '" . $hh_id . "'";
+            $fields     = array("record_id","hhd_record_id","hhd_participant_id","dep_1_record_id", "dep_1_participant_id", "dep_2_record_id" ,"dep_2_participant_id");
+            $q          = \REDCap::getData($this->main_project, 'json', null , $fields  , null, null, false, false, false, $filter);
+            $results    = json_decode($q,true);
+            $main_record = null;
+            if(!empty($results)){
+                $main_record    = current($results);
+            }
+
+            // GET THE PARTIPANT RECORD FROM KIT SUBMISSION
+            $filter     = "[participant_id] = '" . $part_id . "'";
+            $fields     = array("kit_upc_code", "record_id", "survey_type");
             $q          = \REDCap::getData($this->kit_submission_project, 'json', null , $fields  , null, null, false, false, false, $filter);
             $results    = json_decode($q,true);
 
-            $this->emDebug("found the kit_submission_records", $results);
-
-            //NOW FIND A MATCH OR FIRST AVAILABLE SLOT
-            $unused_slots   = array();
-            $matched_result = null;
-            $found_match    = false;
-            foreach ($results as $result) {
-                $record_id  = $result["record_id"];
-                $main_id    = $result["household_record_id"];
-
-                if($result["participant_id"] == $part_id){
-                    // found a match;
-                    // break here and move on
-                    $matched_result = $result;
-                    $found_match    = true;
-                    break;
-                }
-
-                if(empty($result["participant_id"])){
-                    array_push($unused_slots, $result);
-                }
-            }
-
-            if(!$found_match && !empty($unused_slots)){
-                // made it here means no match, use first available slot
-                $matched_result = array_shift($unused_slots);
-            }
+            $this->emDebug("found the kit_submission_records", $results, $main_record);
 
             //FIRSt SAVE TO KITSUBMISSION (participant_id) THEN SAVE BACK TO MAIN PROJECT available slot
-            //have kitsubmit record_id, need to see if it matched dep_1_record_id, or dep_2_record_id
-            if($matched_result){
-                $kit_sub_id = $matched_result["record_id"];
-                $main_id    = $matched_result["household_record_id"];
-    
-                if(empty($matched_result["participant_id"])){
-                    //save to kit_submission_record
-                    $data   = array(
-                        "record_id"         => $kit_sub_id ,
-                        "participant_id"    => $part_id
-                    );
-                    $result = \REDCap::saveData($this->kit_submission_project, 'json', json_encode(array($data)) );
-                    $matched_result["participant_id"] = $part_id;
-                }
+            if(!empty($results) && count($results) == 1){
+                //WTF do we do when we have multiple?  fuckin gauss.
+                $participant = current($result);
 
-                // now save this to the main record
-                $fields     = array("hhd_record_id","hhd_participant_id","dep_1_record_id", "dep_1_participant_id", "dep_2_record_id" ,"dep_2_participant_id");
-                $q          = \REDCap::getData($this->main_project, 'json', array($main_id) , $fields);
-                $result     = current(json_decode($q,true));
-
-                $check_ids  = array("hhd_record_id","dep_1_record_id","dep_2_record_id");
-                $part_vars  = array("hhd_participant_id","dep_1_participant_id","dep_2_participant_id");
-                $matching_var = null;
-                foreach($check_ids as $idx => $check_id){
-                    if($result[$check_id] == $kit_sub_id){
-                        $matching_var = $part_vars[$idx];
-                        break;
+                $matching_var   = null;
+                $kit_id         = null;
+                if($participant["survey_type"] == 1){
+                    //head of household
+                    $matching_var   = "hhd_participant_id";
+                    $kit_id         = "hhd_record_id";
+                }else{
+                    if(empty($main_record["dep_1_participant_id"])){
+                        $matching_var = "dep_1_participant_id";
+                        $kit_id       = "dep_1_record_id";
+                    }else{
+                        $matching_var = "dep_2_participant_id";
+                        $kit_id       = "dep_2_record_id";
                     }
                 }
-                
-                if($matching_var){
-                    // SAVE TO REDCAP
+                // SAVE TO REDCAP
+                if($matching_var && $kit_id){
                     $data   = array(
-                        "record_id"        => $main_id ,
-                        $matching_var      => $part_id
+                        "record_id"        => $main_record["record_id"] ,
+                        $matching_var      => $part_id,
+                        $kit_id            => $participant["record_id"]
                     );
                     $result = \REDCap::saveData($this->main_project, 'json', json_encode(array($data)) );
+                    $this->emDebug("updated main record", $result);
+                }else{
+                    $this->emDebug("couldnt update main record");
                 }
+                
+            }else{
+                $this->emDebug("too many matching records man");
             }
-            
+            $matched_result = array("record_id" => $participant["record_id"], "participant_id" => $part_id, "main_id" => $main_record["record_id"], "all_matches" => $results);
             return $matched_result;  // can be null
         }
         return false;

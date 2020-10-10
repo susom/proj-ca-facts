@@ -9,9 +9,8 @@ if(!empty($_POST["action"])){
         case "getSubmissionId":
             $qrscan     = $_POST["qrscan"] ?? null;
             $result     = $module->getKitSubmissionId($qrscan);
-
-            if(isset($result["record_id"])){
-                $result     = array("error" => false, "record_id" => $result["record_id"], "participant_id" => $result["participant_id"], "main_id" => $result["household_record_id"]);
+            if(isset($result["participant_id"])){
+                $result     = array("error" => false, "record_id" => $result["record_id"], "participant_id" => $result["participant_id"], "main_id" => $result["main_id"], "all_matches" => $result["all_matches"]);
             }else{
                 $result     = array("error" => true);
             }
@@ -20,16 +19,19 @@ if(!empty($_POST["action"])){
         case "linkUPC":
             $upcscan        = $_POST["upcscan"] ?? null;
             $qrscan         = $_POST["qrscan"] ?? null;
-            $record_id      = $_POST["record_id"] ?? null;
+            $records        = $_POST["records"] ?? array();
 
-            // SAVE TO REDCAP
-            $data   = array(
-                "record_id"         => $record_id,
-                "kit_upc_code"      => $upcscan,
-                "kit_qr_input"      => $qrscan
-            );
+            $record_ids     = explode(",",$records);
+            foreach($record_ids as $record_id){
 
-            $result = \REDCap::saveData($pid, 'json', json_encode(array($data)) );
+                // SAVE TO REDCAP
+                $data   = array(
+                    "record_id"         => $record_id,
+                    "kit_upc_code"      => $upcscan,
+                    "kit_qr_input"      => $qrscan
+                );
+                $result = \REDCap::saveData($pid, 'json', json_encode(array($data)) );
+            }
         break;
 
         default:
@@ -193,7 +195,7 @@ if($em_mode != "kit_submission"){
 
     <a href="<?=$link_kit_upc?>" id="reset_link_upc" type="button" class="btn btn-lg btn-primary">Scan/Link a new Test Kit</a>
  
-    <br><br><br><br><br><br>
+    <!-- <br><br><br><br><br><br>
     <br><br><br><br><br><br>
     
     <h4>Main Head of HouseHold KIT QR?</h4>
@@ -207,254 +209,8 @@ if($em_mode != "kit_submission"){
 
     <h4>Pretend UPC</h4>
     <textarea>1234567890</textarea>
+ -->
 
-
-    <?php
-    $shit[] = "hisp_type1___5";
-    $shit[] = "race1___9";
-    $shit[] = "hisp_type2___5";
-    $shit[] = "race2___9";
-    $shit[] = "hisp_type3___5";
-    $shit[] = "race3___9";
-    $shit[] = "hisp_type4___5";
-    $shit[] = "race4___9";
-    $shit[] = "hisp_type5___5";
-    $shit[] = "race5___9";
-    $shit[] = "hisp_type6___5";
-    $shit[] = "race6___9";
-    $shit[] = "hisp_type7___5";
-    $shit[] = "race7___9";
-    $shit[] = "hisp_type8___5";
-    $shit[] = "race8___9";
-    $shit[] = "hisp_type9___5";
-    $shit[] = "race9___9";
-    $shit[] = "hisp_type10___5";
-    $shit[] = "race10___9";
-    $shit[] = "computer___1";
-    $shit[] = "computer___2";
-    $shit[] = "computer___3";
-    $shit[] = "computer___4";
-    $shit[] = "computer___5";
-    $shit[] = "internet___1";
-    $shit[] = "internet___2";
-    $shit[] = "internet___3";
-    $shit[] = "internet___4";
-    $shit[] = "internet___5";
-    $shit[] = "hisp_type1_s___5";
-    $shit[] = "race1_s___9";
-    $shit[] = "hisp_type2_s___5";
-    $shit[] = "race2_s___9";
-    $shit[] = "hisp_type3_s___5";
-    $shit[] = "race3_s___9";
-    $shit[] = "hisp_type4_s___5";
-    $shit[] = "race4_s___9";
-    $shit[] = "hisp_type5_s___5";
-    $shit[] = "race5_s___9";
-    $shit[] = "hisp_type6_s___5";
-    $shit[] = "race6_s___9";
-    $shit[] = "hisp_type7_s___5";
-    $shit[] = "race7_s___9";
-    $shit[] = "hisp_type8_s___5";
-    $shit[] = "race8_s___9";
-    $shit[] = "hisp_type9_s___5";
-    $shit[] = "race9_s___9";
-    $shit[] = "hisp_type10_s___5";
-    $shit[] = "race10_s___9";
-    $shit[] = "computer_s___1";
-    $shit[] = "computer_s___2";
-    $shit[] = "computer_s___3";
-    $shit[] = "computer_s___4";
-    $shit[] = "computer_s___5";
-    $shit[] = "internet_s___1";
-    $shit[] = "internet_s___2";
-    $shit[] = "internet_s___3";
-    $shit[] = "internet_s___4";
-    $shit[] = "internet_s___5";
-    $shit[] = "hisp_type1_v___5";
-    $shit[] = "race1_v___9";
-    $shit[] = "hisp_type2_v___5";
-    $shit[] = "race2_v___9";
-    $shit[] = "hisp_type3_v___5";
-    $shit[] = "race3_v___9";
-    $shit[] = "hisp_type4_v___5";
-    $shit[] = "race4_v___9";
-    $shit[] = "hisp_type5_v___5";
-    $shit[] = "race5_v___9";
-    $shit[] = "hisp_type6_v___5";
-    $shit[] = "race6_v___9";
-    $shit[] = "hisp_type7_v___5";
-    $shit[] = "race7_v___9";
-    $shit[] = "hisp_type8_v___5";
-    $shit[] = "race8_v___9";
-    $shit[] = "hisp_type9_v___5";
-    $shit[] = "race9_v___9";
-    $shit[] = "hisp_type10_v___5";
-    $shit[] = "race10_v___9";
-    $shit[] = "computer_v___1";
-    $shit[] = "computer_v___2";
-    $shit[] = "computer_v___3";
-    $shit[] = "computer_v___4";
-    $shit[] = "computer_v___5";
-    $shit[] = "internet_v___1";
-    $shit[] = "internet_v___2";
-    $shit[] = "internet_v___3";
-    $shit[] = "internet_v___4";
-    $shit[] = "internet_v___5";
-    $shit[] = "hisp_type1_m___5";
-    $shit[] = "race1_m___9";
-    $shit[] = "hisp_type2_m___5";
-    $shit[] = "race2_m___9";
-    $shit[] = "hisp_type3_m___5";
-    $shit[] = "race3_m___9";
-    $shit[] = "hisp_type4_m___5";
-    $shit[] = "race4_m___9";
-    $shit[] = "hisp_type5_m___5";
-    $shit[] = "race5_m___9";
-    $shit[] = "hisp_type6_m___5";
-    $shit[] = "race6_m___9";
-    $shit[] = "hisp_type7_m___5";
-    $shit[] = "race7_m___9";
-    $shit[] = "hisp_type8_m___5";
-    $shit[] = "race8_m___9";
-    $shit[] = "hisp_type9_m___5";
-    $shit[] = "race9_m___9";
-    $shit[] = "hisp_type10_m___5";
-    $shit[] = "race10_m___9";
-    $shit[] = "computer_m___1";
-    $shit[] = "computer_m___2";
-    $shit[] = "computer_m___3";
-    $shit[] = "computer_m___4";
-    $shit[] = "computer_m___5";
-    $shit[] = "internet_m___1";
-    $shit[] = "internet_m___2";
-    $shit[] = "internet_m___3";
-    $shit[] = "internet_m___4";
-    $shit[] = "internet_m___5";
-    $shit[] = "covidwhen";
-    $shit[] = "covidmonth";
-    $shit[] = "sxcovid___14";
-    $shit[] = "sxcovid___15";
-    $shit[] = "knowcovid";
-    $shit[] = "knowcovidwhen";
-    $shit[] = "knowcovidmonth";
-    $shit[] = "abtest";
-    $shit[] = "abresult";
-    $shit[] = "abmood";
-    $shit[] = "abactivity";
-    $shit[] = "mask";
-    $shit[] = "hand";
-    $shit[] = "activity";
-    $shit[] = "nowsx___1";
-    $shit[] = "nowsx___2";
-    $shit[] = "nowsx___3";
-    $shit[] = "nowsx___4";
-    $shit[] = "nowsx___5";
-    $shit[] = "nowsx___6";
-    $shit[] = "nowsx___7";
-    $shit[] = "nowsx___8";
-    $shit[] = "nowsx___9";
-    $shit[] = "nowsx___10";
-    $shit[] = "nowsx___11";
-    $shit[] = "nowsx___12";
-    $shit[] = "nowsx___13";
-    $shit[] = "nowsx___14";
-    $shit[] = "nowsx___15";
-    $shit[] = "txt";
-    $shit[] = "covidwhen_s";
-    $shit[] = "covidmonth_s";
-    $shit[] = "sxcovid_s___14";
-    $shit[] = "sxcovid_s___15";
-    $shit[] = "knowcovid_s";
-    $shit[] = "knowcovidwhen_s";
-    $shit[] = "knowcovidmonth_s";
-    $shit[] = "abtest_s";
-    $shit[] = "abresult_s";
-    $shit[] = "abmood_s";
-    $shit[] = "abactivity_s";
-    $shit[] = "mask_s";
-    $shit[] = "hand_s";
-    $shit[] = "activity_s";
-    $shit[] = "nowsx_s___1";
-    $shit[] = "nowsx_s___2";
-    $shit[] = "nowsx_s___3";
-    $shit[] = "nowsx_s___4";
-    $shit[] = "nowsx_s___5";
-    $shit[] = "nowsx_s___6";
-    $shit[] = "nowsx_s___7";
-    $shit[] = "nowsx_s___8";
-    $shit[] = "nowsx_s___9";
-    $shit[] = "nowsx_s___10";
-    $shit[] = "nowsx_s___11";
-    $shit[] = "nowsx_s___12";
-    $shit[] = "nowsx_s___13";
-    $shit[] = "nowsx_s___14";
-    $shit[] = "nowsx_s___15";
-    $shit[] = "txt_s";
-    $shit[] = "covidwhen_v";
-    $shit[] = "covidmonth_v";
-    $shit[] = "sxcovid_v___14";
-    $shit[] = "sxcovid_v___15";
-    $shit[] = "knowcovid_v";
-    $shit[] = "knowcovidwhen_v";
-    $shit[] = "knowcovidmonth_v";
-    $shit[] = "abtest_v";
-    $shit[] = "abresult_v";
-    $shit[] = "abmood_v";
-    $shit[] = "abactivity_v";
-    $shit[] = "mask_v";
-    $shit[] = "hand_v";
-    $shit[] = "activity_v";
-    $shit[] = "nowsx_v___1";
-    $shit[] = "nowsx_v___2";
-    $shit[] = "nowsx_v___3";
-    $shit[] = "nowsx_v___4";
-    $shit[] = "nowsx_v___5";
-    $shit[] = "nowsx_v___6";
-    $shit[] = "nowsx_v___7";
-    $shit[] = "nowsx_v___8";
-    $shit[] = "nowsx_v___9";
-    $shit[] = "nowsx_v___10";
-    $shit[] = "nowsx_v___11";
-    $shit[] = "nowsx_v___12";
-    $shit[] = "nowsx_v___13";
-    $shit[] = "nowsx_v___14";
-    $shit[] = "nowsx_v___15";
-    $shit[] = "txt_v";
-    $shit[] = "covidwhen_m";
-    $shit[] = "covidmonth_m";
-    $shit[] = "sxcovid_m___14";
-    $shit[] = "sxcovid_m___15";
-    $shit[] = "knowcovid_m";
-    $shit[] = "knowcovidwhen_m";
-    $shit[] = "knowcovidmonth_m";
-    $shit[] = "abtest_m";
-    $shit[] = "abresult_m";
-    $shit[] = "abmood_m";
-    $shit[] = "abactivity_m";
-    $shit[] = "mask_m";
-    $shit[] = "hand_m";
-    $shit[] = "activity_m";
-    $shit[] = "nowsx_m___1";
-    $shit[] = "nowsx_m___2";
-    $shit[] = "nowsx_m___3";
-    $shit[] = "nowsx_m___4";
-    $shit[] = "nowsx_m___5";
-    $shit[] = "nowsx_m___6";
-    $shit[] = "nowsx_m___7";
-    $shit[] = "nowsx_m___8";
-    $shit[] = "nowsx_m___9";
-    $shit[] = "nowsx_m___10";
-    $shit[] = "nowsx_m___11";
-    $shit[] = "nowsx_m___12";
-    $shit[] = "nowsx_m___13";
-    $shit[] = "nowsx_m___14";
-    $shit[] = "nowsx_m___15";
-    $shit[] = "txt_m";
-
-    sort($shit);
-    echo "<pre>";
-    print_r($shit);
-    ?>
     <script>
         $(document).ready(function(){
             // UI UX 
@@ -491,8 +247,13 @@ if($em_mode != "kit_submission"){
 
                         $(".qrscan h6").addClass("step_used");
                         
-                        var kit_record_id   = result["record_id"];
-                        $("input[name='kit_upc_code']").attr("data-kitrecordid",kit_record_id);
+                        var kit_records   = result["all_matches"];
+                        var record_ids    = [];
+                        for(var i in kit_records){
+                            record_ids.push(kit_records[i]['record_id']);
+                        }
+                        console.log(kit_records);
+                        $("input[name='kit_upc_code']").attr("data-kitrecords",record_ids);
 
                         $(".upcscan h6").addClass("next_step");
                     },1000);
@@ -507,9 +268,9 @@ if($em_mode != "kit_submission"){
 
             $("input[name='kit_upc_code']").on("input", function(){
                 var upcscan         = $(this).val();
-                var kit_record_id   = $(this).attr("data-kitrecordid");
+                var kit_records   = $(this).attr("data-kitrecords");
                 var qrscan          = $("#test_kit_qr").val();
-
+                
                 var _el = $(this);
                 $.ajax({
                     method: 'POST',
@@ -517,7 +278,7 @@ if($em_mode != "kit_submission"){
                             "action"    : "linkUPC",
                             "upcscan"    : upcscan,
                             "qrscan"    : qrscan,
-                            "record_id"     : kit_record_id
+                            "records"     : kit_records
                     },
                     dataType: 'json'
                 }).done(function (result) {
