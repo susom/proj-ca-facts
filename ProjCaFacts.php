@@ -406,14 +406,11 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
      */
     public function getKitSubmissionId($qrscan) {
         $houseid    = $this->getHouseHoldId($qrscan);
-        $this->emDebug("Got the HHID + SURVEYID FROM qrscan", $qrscan, $houseid);
+        // $this->emDebug("Got the HHID + SURVEYID FROM qrscan", $qrscan, $houseid);
 
         if(!empty($houseid)){
             $part_id    = $houseid["survey_id"];
             $hh_id      = $houseid["household_id"];
-
-        // $part_id    = "1WBDR9WV24RVMHL5";
-        // $hh_id      = "JZ53NLZ9FWKRG917";
             
             // GET MAIN PROJECT RECORD ID
             $filter     = "[kit_household_code] = '" . $hh_id . "'";
@@ -424,19 +421,19 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
             if(!empty($results)){
                 $main_record    = current($results);
             }
+            // $this->emDebug("Scanned a test QR (participant_id + hh_id) use hh_id to find main record", $part_id, $hh_id, $main_record);
 
             // GET THE PARTIPANT RECORD FROM KIT SUBMISSION
             $filter     = "[participant_id] = '" . $part_id . "'";
             $fields     = array("kit_upc_code", "record_id", "survey_type");
             $q          = \REDCap::getData($this->kit_submission_project, 'json', null , $fields  , null, null, false, false, false, $filter);
             $results    = json_decode($q,true);
-
-            $this->emDebug("found the kit_submission_records", $results, $main_record);
+            // $this->emDebug("found the kit_submission_records", $results);
 
             //FIRSt SAVE TO KITSUBMISSION (participant_id) THEN SAVE BACK TO MAIN PROJECT available slot
             if(!empty($results) && count($results) == 1){
                 //WTF do we do when we have multiple?  fuckin gauss.
-                $participant = current($result);
+                $participant = current($results);
 
                 $matching_var   = null;
                 $kit_id         = null;
@@ -461,13 +458,13 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
                         $kit_id            => $participant["record_id"]
                     );
                     $result = \REDCap::saveData($this->main_project, 'json', json_encode(array($data)) );
-                    $this->emDebug("updated main record", $result);
+                    // $this->emDebug("updated main record", $data, $main_record, $participant);
                 }else{
                     $this->emDebug("couldnt update main record");
                 }
                 
             }else{
-                $this->emDebug("too many matching records man");
+                // $this->emDebug("too many matching records man");
             }
             $matched_result = array("record_id" => $participant["record_id"], "participant_id" => $part_id, "main_id" => $main_record["record_id"], "all_matches" => $results);
             return $matched_result;  // can be null
@@ -927,12 +924,28 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
         Parse CSV to batchupload test Results
     */
     public function parseCSVtoDB_generic($file){
+
         $header_row = true;
         $file       = fopen($file['tmp_name'], 'r');
 
         $headers    = array();
         $results    = Array();
 
+        //first get all records from main record and overwrite ANY OF THE pregen kit submission record_ids ugh
+        $filter     = "[hhd_record_id] != '' OR [dep_1_record_id] != '' OR [dep_2_record_id] != ''";
+        $fields     = array("record_id","hhd_record_id","dep_1_record_id", "dep_2_record_id");
+        $q          = \REDCap::getData($this->main_project, 'json', null , $fields  , null, null, false, false, false, $filter);
+        $results    = json_decode($q,true);
+        $temp_data  = array();
+        foreach($results as $result){
+            $result["hhd_record_id"] = '';
+            $result["dep_1_record_id"] = '';
+            $result["dep_2_record_id"] = '';
+            $temp_data[] = $result;
+        }
+        $result = \REDCap::saveData($this->main_project, 'json', json_encode($temp_data), "overwrite" );
+
+        //now we parse the CSV, and match the QR -> UPC 
         if($file){
             while (($line = fgetcsv($file)) !== FALSE) {
                 if($header_row){
@@ -949,18 +962,35 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
         
         $header_count   = count($headers);
         $data           = array();
-        foreach($results as $result){
-            $temp   = array();
-            for($i  = 0; $i < $header_count; $i++){
-                $var_name = $headers[$i];
-                $temp[$var_name] = $result[$i];
-            }
-            $this->emDebug("What the fuck?", $temp);
-            $data[] = $temp;
-        }        
+        foreach($results as $rowidx => $result){
+            $qrscan     = $result[0];
+            $upcscan    = $result[1];
+            $api_result = $this->getKitSubmissionId($qrscan);
+            $this->emDebug("now what", $api_result);
+            if(isset($api_result["participant_id"])){
+                $record_id      = $api_result["record_id"];
+                $records        = $api_result["all_matches"];
+                $mainid         = $api_result["main_id"];
 
-        $r  = \REDCap::saveData('json', json_encode($data) );
-        $this->emDebug("did this parse and save?", $r);
+                foreach($records as $result){
+                    // SAVE TO REDCAP
+                    $temp   = array(
+                        "record_id"         => $result["record_id"],
+                        "kit_upc_code"      => $upcscan,
+                        "kit_qr_input"      => $qrscan,
+                        "household_record_id" => $mainid
+                    );
+                    $data[] = $temp;
+                    $r  = \REDCap::saveData('json', json_encode(array($temp)) );
+                    if(!empty($r["errors"])){
+                        $this->emDebug("save to kit_submit, the UPC and main record_id", $rowidx, $r["errors"]);
+                    }
+                }
+            }else{
+                $this->emDebug("No API results for qrscan for row $rowidx");
+            }
+        }        
+                
         return $r;
     }
 

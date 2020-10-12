@@ -20,6 +20,7 @@ if(!empty($_POST["action"])){
             $upcscan        = $_POST["upcscan"] ?? null;
             $qrscan         = $_POST["qrscan"] ?? null;
             $records        = $_POST["records"] ?? array();
+            $mainid         = $_POST["mainid"] ?? null;
 
             $record_ids     = explode(",",$records);
             foreach($record_ids as $record_id){
@@ -28,9 +29,12 @@ if(!empty($_POST["action"])){
                 $data   = array(
                     "record_id"         => $record_id,
                     "kit_upc_code"      => $upcscan,
-                    "kit_qr_input"      => $qrscan
+                    "kit_qr_input"      => $qrscan,
+                    "household_record_id" => $mainid
                 );
-                $result = \REDCap::saveData($pid, 'json', json_encode(array($data)) );
+                $result = \REDCap::saveData('json', json_encode(array($data)) );
+
+                $module->emDebug("i need to add the main record", $data);
             }
         break;
 
@@ -252,8 +256,9 @@ if($em_mode != "kit_submission"){
                         for(var i in kit_records){
                             record_ids.push(kit_records[i]['record_id']);
                         }
-                        console.log(kit_records);
+                        console.log("kit records", result);
                         $("input[name='kit_upc_code']").attr("data-kitrecords",record_ids);
+                        $("input[name='kit_upc_code']").attr("data-mainrecordid",result["main_id"]);
 
                         $(".upcscan h6").addClass("next_step");
                     },1000);
@@ -268,7 +273,8 @@ if($em_mode != "kit_submission"){
 
             $("input[name='kit_upc_code']").on("input", function(){
                 var upcscan         = $(this).val();
-                var kit_records   = $(this).attr("data-kitrecords");
+                var kit_records     = $(this).attr("data-kitrecords");
+                var main_id         = $(this).attr("data-mainrecordid");
                 var qrscan          = $("#test_kit_qr").val();
                 
                 var _el = $(this);
@@ -278,10 +284,12 @@ if($em_mode != "kit_submission"){
                             "action"    : "linkUPC",
                             "upcscan"    : upcscan,
                             "qrscan"    : qrscan,
-                            "records"     : kit_records
+                            "records"     : kit_records,
+                            "mainid"    : main_id
                     },
                     dataType: 'json'
                 }).done(function (result) {
+                    console.log("upc linked ", result);
                     $(".upcscan").addClass("link_loading");
 
                     // MAKE THE UI TO SHOW SUCCESS
