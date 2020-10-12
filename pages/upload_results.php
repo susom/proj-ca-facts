@@ -13,14 +13,6 @@ if(!empty($_POST["action"])){
             }
         break;
 
-        case "updateUPC":
-            $field_type  = $_POST['field_type'];
-            if($field_type == "file"){
-                $file       = current($_FILES);
-                $module->parseCSVtoDB_generic($file);
-            }
-        break;
-
         default:
         break;
     }
@@ -150,19 +142,6 @@ if($em_mode = "kit_submission"){
     <a href="<?=$link_kit_upc?>" id="upload_btn" type="button" class="btn btn-lg btn-primary">Upload and Process File</a>
 
 
-    
-
-    <hr>
-    *one time use
-    <div class='qrscan'>
-        <h6 class="next_step">Upload Temp CSV Here</h6>
-        <form method="post" enctype="multipart/form-data">
-        <label for='upload_csv'></label><input type='file' name='upload_csv' id='upload_csv_2' placeholder="Test Results CSV"/>
-        </form>
-    </div>
-    <br><br>
-    <a href="<?=$link_kit_upc?>" id="upload_btn_2" type="button" class="btn btn-lg btn-primary">Upload and Process File</a>
-
 
     
     <script>
@@ -177,16 +156,6 @@ if($em_mode = "kit_submission"){
                 return false;
             });
 
-            $("#upload_btn_2").click(function(){
-                var file =  $("#upload_csv_2").prop('files')[0];
-
-                if(file){
-                    ajaxlikeFormUpload($("#upload_csv_2"));
-                }
-
-                return false;
-            });
-            
             function ajaxlikeFormUpload(el){
                 // create temp hidden iframe for submitting from/to;
                 if($('iframe[name=iframeTarget]').length < 1){
@@ -202,7 +171,7 @@ if($em_mode = "kit_submission"){
                 var file            = el.prop('files')[0];
 
                 el.parent().attr("target","iframeTarget");
-                el.parent().append($("<input type='hidden'>").attr("name","action").val("updateUPC"));
+                el.parent().append($("<input type='hidden'>").attr("name","action").val("saveField"));
                 el.parent().append($("<input type='hidden'>").attr("name","field_type").val(field_type));
                 el.parent().append($("<input type='hidden'>").attr("name","input_field").val(input_field));
                 el.parent().trigger("submit");

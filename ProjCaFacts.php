@@ -432,7 +432,7 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
 
             //FIRSt SAVE TO KITSUBMISSION (participant_id) THEN SAVE BACK TO MAIN PROJECT available slot
             if(!empty($results) && count($results) == 1){
-                //WTF do we do when we have multiple?  fuckin gauss.
+                //TODO WHAT  do we do when we have multiple?  fuckin gauss.
                 $participant = current($results);
 
                 $matching_var   = null;
@@ -931,20 +931,6 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
         $headers    = array();
         $results    = Array();
 
-        //first get all records from main record and overwrite ANY OF THE pregen kit submission record_ids ugh
-        $filter     = "[hhd_record_id] != '' OR [dep_1_record_id] != '' OR [dep_2_record_id] != ''";
-        $fields     = array("record_id","hhd_record_id","dep_1_record_id", "dep_2_record_id");
-        $q          = \REDCap::getData($this->main_project, 'json', null , $fields  , null, null, false, false, false, $filter);
-        $results    = json_decode($q,true);
-        $temp_data  = array();
-        foreach($results as $result){
-            $result["hhd_record_id"] = '';
-            $result["dep_1_record_id"] = '';
-            $result["dep_2_record_id"] = '';
-            $temp_data[] = $result;
-        }
-        $result = \REDCap::saveData($this->main_project, 'json', json_encode($temp_data), "overwrite" );
-
         //now we parse the CSV, and match the QR -> UPC 
         if($file){
             while (($line = fgetcsv($file)) !== FALSE) {
@@ -965,30 +951,30 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
         foreach($results as $rowidx => $result){
             $qrscan     = $result[0];
             $upcscan    = $result[1];
-            $api_result = $this->getKitSubmissionId($qrscan);
-            $this->emDebug("now what", $api_result);
-            if(isset($api_result["participant_id"])){
-                $record_id      = $api_result["record_id"];
-                $records        = $api_result["all_matches"];
-                $mainid         = $api_result["main_id"];
+            // $api_result = $this->getKitSubmissionId($qrscan);
+            // $this->emDebug("now what", $api_result);
+            // if(isset($api_result["participant_id"])){
+            //     $record_id      = $api_result["record_id"];
+            //     $records        = $api_result["all_matches"];
+            //     $mainid         = $api_result["main_id"];
 
-                foreach($records as $result){
-                    // SAVE TO REDCAP
-                    $temp   = array(
-                        "record_id"         => $result["record_id"],
-                        "kit_upc_code"      => $upcscan,
-                        "kit_qr_input"      => $qrscan,
-                        "household_record_id" => $mainid
-                    );
-                    $data[] = $temp;
-                    $r  = \REDCap::saveData('json', json_encode(array($temp)) );
-                    if(!empty($r["errors"])){
-                        $this->emDebug("save to kit_submit, the UPC and main record_id", $rowidx, $r["errors"]);
-                    }
-                }
-            }else{
-                $this->emDebug("No API results for qrscan for row $rowidx");
-            }
+            //     foreach($records as $result){
+            //         // SAVE TO REDCAP
+            //         $temp   = array(
+            //             "record_id"         => $result["record_id"],
+            //             "kit_upc_code"      => $upcscan,
+            //             "kit_qr_input"      => $qrscan,
+            //             "household_record_id" => $mainid
+            //         );
+            //         $data[] = $temp;
+            //         $r  = \REDCap::saveData('json', json_encode(array($temp)) );
+            //         if(!empty($r["errors"])){
+            //             $this->emDebug("save to kit_submit, the UPC and main record_id", $rowidx, $r["errors"]);
+            //         }
+            //     }
+            // }else{
+            //     $this->emDebug("No API results for qrscan for row $rowidx");
+            // }
         }        
                 
         return $r;
