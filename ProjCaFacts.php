@@ -406,7 +406,7 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
      */
     public function getKitSubmissionId($qrscan) {
         $houseid    = $this->getHouseHoldId($qrscan);
-        // $this->emDebug("Got the HHID + SURVEYID FROM qrscan", $qrscan, $houseid);
+        $this->emDebug("Got the HHID + SURVEYID FROM qrscan", $qrscan, $houseid);
 
         if(!empty($houseid)){
             $part_id    = $houseid["survey_id"];
@@ -567,6 +567,7 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
             curl_close($process);
             
         } catch (Exception $e) {
+            $this->emDebug("what happened",  $e->getMessage());
             exit( 'Decrypt API request failed: ' . $e->getMessage() );
         }
 
