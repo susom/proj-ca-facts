@@ -255,7 +255,7 @@ if($em_mode != "kit_submission"){
                         _el.attr("placeholder","No Match, Scan Again");
                         _el.focus();
                     });
-                },1000);
+                },5000);
                 
             });
 
@@ -301,7 +301,7 @@ if($em_mode != "kit_submission"){
                         _el.attr("placeholder","Error, Scan Again");
                         _el.focus();
                     });
-                }, 500);
+                }, 1000);
             });
 
             $("#copytoclip").click(function(){
