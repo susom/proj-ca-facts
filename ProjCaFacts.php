@@ -272,6 +272,7 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
         }        
 
         //3.  GET PUBLIC SURVEY URL WITH FIELDS LINKED
+        $this->emDebug("is the survey link failing?");
         $survey_link = \REDCap::getSurveyLink($record=$next_id, $instrument='invitation_questionnaire', $event_id='', $instance=1, $project_id=$this->main_project);
         $this->emDebug("survey link" , $survey_link);
         // Return result
