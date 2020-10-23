@@ -9,8 +9,11 @@ if(!empty($_POST["action"])){
             $field_type  = $_POST['field_type'];
             if($field_type == "file"){
                 $file       = current($_FILES);
-                $module->parseCSVtoDB($file);
+                $result     = $module->parseResultsCSVtoDB($file);
             }
+
+            echo "<p id='upload_results'>".json_encode($result)."</p>";
+            exit;
         break;
 
         default:
@@ -38,6 +41,7 @@ if($em_mode = "kit_submission"){
     <?php
         $loading            = $module->getUrl("docs/images/icon_loading.gif");
         $loaded             = $module->getUrl("docs/images/icon_loaded.png");
+        $failed             = $module->getUrl("docs/images/icon_fail.png");
         $qrscan_src         = $module->getUrl("docs/images/fpo_qr_bar.png");
         $doublearrow_src    = $module->getUrl("docs/images/icon_doublearrow.png");
         $link_kit_upc       = $module->getUrl("pages/link_kit_upc.php");
@@ -126,19 +130,51 @@ if($em_mode = "kit_submission"){
             text-decoration:none;
             color:#fff;
         }
+
+        #result_msg.good { color:green }
+        #result_msg.bad { color:red }
+
+        #result_msg{ 
+            position:relative; 
+            min-height:20px;
+            padding-left:25px;    
+        }
+        #result_msg::before{
+            content:"";
+            position:absolute;
+            left:0; top:0;
+            width:20px;
+            height:20px;
+        }
+        #result_msg.loading::before{
+            background:url(<?=$loading?>) 50% no-repeat; 
+            background-size:contain;
+        }
+        #result_msg.loaded::before{
+            background:url(<?=$loaded?>) 50% no-repeat; 
+            background-size:contain;
+        }
+        #result_msg.failed::before{
+            background:url(<?=$failed?>) 50% no-repeat; 
+            background-size:contain;
+        }
+        #failed_rowids{
+             min-height:150px;
+        }
     </style>
     
     <section id="pending_invites">
 
         <div class='qrscan'>
             <h6 class="next_step">Upload CSV Here</h6>
+            <em>Takes 1+ seconds per record</em>
+            <br><br>
             <form method="post" enctype="multipart/form-data">
             <label for='upload_csv'></label><input type='file' name='upload_csv' id='upload_csv' placeholder="Test Results CSV"/>
             </form>
+            <h6 id="result_msg" class="d-block my-3"></h6>
         </div>
     </section>
-
-    <br><br>
     <a href="<?=$link_kit_upc?>" id="upload_btn" type="button" class="btn btn-lg btn-primary">Upload and Process File</a>
 
 
@@ -164,12 +200,37 @@ if($em_mode = "kit_submission"){
                     $(iframe).attr('src','#');
                     $(iframe).attr('name','iframeTarget');
                     $('body').append(iframe);
+
+                    $(iframe).on('load', function(e) {
+                        // Handler for "load" called.
+                        var innerDoc    = iframe.contentDocument || iframe.contentWindow.document;
+                        var iframe_doc  = $(innerDoc);
+                        var result      = iframe_doc.find("#upload_results").text();
+                        var result      = $.parseJSON(result);
+
+                        var success_records = result["success"];
+                        var fail_records    = result["failed"];
+                        var total_rows      = result["total"];
+
+                        $("#result_msg").removeClass("loading");
+                        if(success_records){
+                            $("#result_msg").addClass("loaded").html("Success " + success_records + " of <b>" + total_rows + "</b> records successfully updated");
+
+                            var failed = $("<textarea>").attr("id","failed_rowids").val("Failed Row Ids:\r\n" + fail_records.join("\r\n"));
+                            failed.insertAfter($("#result_msg"));
+                        }else{
+                            $("#result_msg").addClass("failed").html("Error : records not updated");
+                        }
+                    });
                 }
 
                 var input_field     = el.attr("name");
                 var field_type      = el.attr("type");
                 var file            = el.prop('files')[0];
 
+                $("#result_msg").removeClass("loaded").removeClass("failed").removeClass("loading").addClass("loading").text("Processing data ...");
+                $("#failed_rowids").remove();
+                
                 el.parent().attr("target","iframeTarget");
                 el.parent().append($("<input type='hidden'>").attr("name","action").val("saveField"));
                 el.parent().append($("<input type='hidden'>").attr("name","field_type").val(field_type));
@@ -180,96 +241,3 @@ if($em_mode = "kit_submission"){
     </script>
 </div>
 <?php } ?>
-
-<?php
-
-exit; 
-/*
-// parse CSV
-$files = glob($redcap_temp . "*.csv");
-foreach($files as $filepath) {
-    if ($handle = fopen($filepath, "r")) {
-        $module->parseCSVtoDB( $filepath , $exclude_columns );
-
-        echo "<pre>";
-        print_r($filepath);
-        echo "</pre>";
-    }
-}
-
-public function parseCSVtoDB($filename, $exclude_columns){
-    //Path of the file stored under pathinfo 
-    $filepath = pathinfo($filename); 
-    $basename =  $filepath['basename']; 
-
-    //HOW MANY POSSIBLE INSITUTIONS?
-    $this->institution = strpos(strtoupper($basename), "UCSF") !== false ? "UCSF" : "STANFORD";
-
-    $sql 	= "SELECT * FROM  track_covid_result_match WHERE csv_file = '$basename'" ;
-    $q 		= $this->query($sql, array());
-
-    if($q->num_rows){
-        //CSV's DATA alreay in DB so USE THAT
-        while ($data = db_fetch_assoc($q)) {
-            //push all row data into array in mem
-            $new_row = new \Stanford\TrackCovidConsolidator\CSVRecord($data,$this->institution);
-            $this->CSVRecords[]=  $new_row;
-        }
-    }else{
-        //LOAD CSV TO DB
-        $header_row  = true;
-        if (($handle = fopen($filename, "r")) !== FALSE) {
-            $sql_value_array 	= array();
-            $all_values	 		= array();
-            while (($data = fgetcsv($handle, 1000, ",")) !== FALSE) {
-                if($header_row){
-                    // prep headers as sql column headers
-                    foreach($exclude_columns as $exclude_key){
-                        unset($data[$exclude_key]);
-                    }
-
-                    // adding extra column to determine which file the data came from
-                    array_push($data, "csv_file");
-
-                    $headers 	= implode(",",$data);
-                    print_r($headers);
-                    $header_row = false;
-                }else{
-                    // Data
-                    foreach($exclude_columns as $exclude_key){
-                        unset($data[$exclude_key]);
-                    }
-
-                    // adding extra column to determine which csv file the data came from
-                    array_push($data, $basename);
-
-                    // prep data for SQL INSERT
-                    array_push($sql_value_array, '("'. implode('","', $data) . '")');
-                    
-                    //push all row data into array in mem
-                    $new_row = new \Stanford\TrackCovidConsolidator\CSVRecord($data,$this->institution);
-                    $this->CSVRecords[]=  $new_row;
-                }
-            }
-
-            // STUFF THIS CSV INTO TEMPORARY RC DB TABLE 'track_covid_result_match'
-            try {
-                $sql = "INSERT INTO track_covid_result_match (".$headers.") VALUES " . implode(',',$sql_value_array) . " ON DUPLICATE KEY UPDATE TRACKCOVID_ID=TRACKCOVID_ID" ;
-                $q = $this->query($sql, array());
-
-                $this->discardCSV($filename);
-
-                return true;
-            } catch (\Exception $e) {
-                $msg = $e->getMessage();
-                $this->emDebug($msg);
-                throw $e;
-            }
-            fclose($handle);
-        }
-    }
-    
-    return;
-}
-*/
-?>

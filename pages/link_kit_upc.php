@@ -38,6 +38,17 @@ if(!empty($_POST["action"])){
             }
         break;
 
+        case "saveField":
+            $field_type = $_POST['field_type'];
+            if($field_type == "file"){
+                $file   = current($_FILES);
+                $result = $module->parseUPCLinkCSVtoDB($file);
+
+                echo "<p id='upload_results'>".json_encode($result)."</p>";
+                exit;
+            }
+        break;
+
         default:
         break;
     }
@@ -76,6 +87,7 @@ if($em_mode != "kit_submission"){
     <?php
         $loading            = $module->getUrl("docs/images/icon_loading.gif");
         $loaded             = $module->getUrl("docs/images/icon_loaded.png");
+        $failed             = $module->getUrl("docs/images/icon_fail.png");
         $qrscan_src         = $module->getUrl("docs/images/fpo_qr_bar.png");
         $doublearrow_src    = $module->getUrl("docs/images/icon_doublearrow.png");
         $link_kit_upc       = $module->getUrl("pages/link_kit_upc.php");
@@ -174,6 +186,37 @@ if($em_mode != "kit_submission"){
             text-decoration:none;
             color:#fff;
         }
+
+        #result_msg.good { color:green }
+        #result_msg.bad { color:red }
+
+        #result_msg{ 
+            position:relative; 
+            min-height:20px;
+            padding-left:25px;    
+        }
+        #result_msg::before{
+            content:"";
+            position:absolute;
+            left:0; top:0;
+            width:20px;
+            height:20px;
+        }
+        #result_msg.loading::before{
+            background:url(<?=$loading?>) 50% no-repeat; 
+            background-size:contain;
+        }
+        #result_msg.loaded::before{
+            background:url(<?=$loaded?>) 50% no-repeat; 
+            background-size:contain;
+        }
+        #result_msg.failed::before{
+            background:url(<?=$failed?>) 50% no-repeat; 
+            background-size:contain;
+        }
+        #failed_rowids{
+             min-height:150px;
+        }
     </style>
     
     <section id="pending_invites">
@@ -188,13 +231,26 @@ if($em_mode != "kit_submission"){
             <label for='test_kit_upc'></label><input type='text' name='kit_upc_code' id='test_kit_upc' placeholder="Scan Test Tube UPC"/>
         </div>
     </section>
-
+    <hr>
+    <a href="<?=$link_kit_upc?>" id="reset_link_upc" type="button" class="btn btn-lg btn-primary">Scan/Link a new Test Kit</a>
+    
     <br><br>
     <hr>
     <br><br>
-
-    <a href="<?=$link_kit_upc?>" id="reset_link_upc" type="button" class="btn btn-lg btn-primary">Scan/Link a new Test Kit</a>
- 
+    <h4>Bulk Upload QR -> UPC CSV</h4>
+    <section id="bulk upc link csv upload">
+        <div class='qrscan'>
+            <h6 class="next_step">Upload CSV Here</h6>
+            <em>Takes 1+ seconds per record</em>
+            <br><br>
+            <form method="post" enctype="multipart/form-data">
+            <label for='upload_csv'></label><input type='file' name='upload_csv' id='upload_csv' placeholder="QR-UPC Link CSV"/>
+            </form>
+            <h6 id="result_msg" class="d-block my-3"></h6>
+        </div>
+    </section>
+    <a href="<?=$link_kit_upc?>" id="upload_btn" type="button" class="btn btn-lg btn-primary">Upload and Process File</a>
+    
     <script>
         $(document).ready(function(){
             // UI UX 
@@ -312,6 +368,77 @@ if($em_mode != "kit_submission"){
 
             //be here when the page loads
             $("input[name='kit_qr_code']").focus();
+
+
+
+            $("#upload_btn").click(function(){
+                var file =  $("#upload_csv").prop('files')[0];
+
+                if(file){
+                    ajaxlikeFormUpload($("#upload_csv"));
+                }
+
+                return false;
+            });
+
+            function ajaxlikeFormUpload(el){
+                // create temp hidden iframe for submitting from/to;
+                if($('iframe[name=iframeTarget]').length < 1){
+                    var iframe = document.createElement('iframe');
+                    $(iframe).css('display','none');
+                    $(iframe).attr('src','#');
+                    $(iframe).attr('name','iframeTarget');
+                    $('body').append(iframe);
+
+                    $(iframe).on('load', function(e) {
+                        // Handler for "load" called.
+                        var innerDoc    = iframe.contentDocument || iframe.contentWindow.document;
+                        var iframe_doc  = $(innerDoc);
+                        var result      = iframe_doc.find("#upload_results").text();
+                        var result      = $.parseJSON(result);
+
+                        var success_records = result["success"];
+                        var fail_records    = result["failed"];
+                        var total_rows      = result["total"];
+
+                        $("#result_msg").removeClass("loading");
+                        if(success_records){
+                            $("#result_msg").addClass("loaded").html("Success " + success_records + " of <b>" + total_rows + "</b> records successfully updated");
+
+                            var failed = $("<textarea>").attr("id","failed_rowids").val("Failed Row Ids:\r\n" + fail_records.join("\r\n"));
+                            failed.insertAfter($("#result_msg"));
+                        }else{
+                            $("#result_msg").addClass("failed").html("Error : records not updated");
+                        }
+                    });
+
+                }
+
+                var input_field     = el.attr("name");
+                var field_type      = el.attr("type");
+                var file            = el.prop('files')[0];
+
+                $("#result_msg").removeClass("loaded").removeClass("failed").removeClass("loading").addClass("loading").text("Processing data ...");
+                $("#failed_rowids").remove();
+
+                el.parent().attr("target","iframeTarget");
+                el.parent().append($("<input type='hidden'>").attr("name","action").val("saveField"));
+                el.parent().append($("<input type='hidden'>").attr("name","field_type").val(field_type));
+                el.parent().append($("<input type='hidden'>").attr("name","input_field").val(input_field));
+                el.parent().trigger("submit");
+            }
+
+            function uploadDone() { //Function will be called when iframe is loaded
+                var ret = frames['upload_target'].document.getElementsByTagName("body")[0].innerHTML;
+                var data = eval("("+ret+")"); //Parse JSON // Read the below explanations before passing judgment on me
+                
+                if(data.success) { //This part happens when the image gets uploaded.
+                    document.getElementById("image_details").innerHTML = "<img src='image_uploads/" + data.file_name + "' /><br />Size: " + data.size + " KB";
+                }
+                else if(data.failure) { //Upload failed - show user the reason.
+                    alert("Upload Failed: " + data.failure);
+                }	
+            }
         });
     </script>
 </div>
