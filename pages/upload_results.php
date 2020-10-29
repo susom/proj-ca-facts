@@ -58,9 +58,9 @@ if($em_mode = "kit_submission"){
         }
         #pending_invites input{
             font-size: 20px;
-            padding:10px;
+            /* padding:10px;
             border-radius: 3px;
-            border: 1px solid #ccc;
+            border: 1px solid #ccc; */
             display:inline-block;
             cursor:pointer;
             width:800px;

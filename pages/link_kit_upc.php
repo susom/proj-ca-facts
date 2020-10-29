@@ -77,11 +77,7 @@ if($em_mode != "kit_submission"){
 }else{
 ?>
 <div style='margin:20px 40px 0 0;'>
-    <h4>Test Kit / Testtube UPC Linkage</h4>
-    <p>To link the returned Test Kit to a Test Tube UPC:</p>
     
-    <br>
-    <br>
 
     <?php
         $loading            = $module->getUrl("docs/images/icon_loading.gif");
@@ -218,7 +214,13 @@ if($em_mode != "kit_submission"){
         }
     </style>
     
-    <section id="pending_invites">
+    <!-- 
+        <h4>Test Kit / Testtube UPC Linkage</h4>
+        <p>To link the returned Test Kit to a Test Tube UPC:</p>
+        
+        <br>
+        <br>
+        <section id="pending_invites">
         <div class='qrscan align-top'>
             <h6 class="next_step">1. Click input and scan QR Code</h6>
             <label for='test_kit_qr'></label><input type='text' name='kit_qr_code' id='test_kit_qr' placeholder="Scan Test Kit QR"/>
@@ -233,10 +235,12 @@ if($em_mode != "kit_submission"){
     <hr>
     <a href="<?=$link_kit_upc?>" id="reset_link_upc" type="button" class="btn btn-lg btn-primary">Scan/Link a new Test Kit</a>
     
-    <br><br>
-    <hr>
-    <br><br>
-    <h4>Bulk Upload QR -> UPC CSV</h4>
+    <br><br> -->
+    <!-- <hr>
+    <br><br> -->
+
+
+    <h4>Bulk Upload Test Kit QR to Test Tube UPC [CSV]</h4>
     <section id="bulk upc link csv upload">
         <div class='qrscan'>
             <h6 class="next_step">Upload CSV Here</h6>
