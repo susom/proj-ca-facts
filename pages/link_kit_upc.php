@@ -2,7 +2,6 @@
 namespace Stanford\ProjCaFacts;
 /** @var \Stanford\ProjCaFacts\ProjCaFacts $module */
 
-
 if(!empty($_POST["action"])){
     $action = $_POST["action"];
     switch($action){
@@ -403,9 +402,9 @@ if($em_mode != "kit_submission"){
 
                         $("#result_msg").removeClass("loading");
                         if(success_records){
-                            $("#result_msg").addClass("loaded").html("Success " + success_records + " of <b>" + total_rows + "</b> records successfully updated");
+                            $("#result_msg").addClass("loaded").html( success_records + " of <b>" + total_rows + "</b> records updated");
 
-                            var failed = $("<textarea>").attr("id","failed_rowids").val("Failed Row Ids:\r\n" + fail_records.join("\r\n"));
+                            var failed = $("<textarea>").attr("id","failed_rowids").val("QR not found:\r\n" + fail_records.join("\r\n"));
                             failed.insertAfter($("#result_msg"));
                         }else{
                             $("#result_msg").addClass("failed").html("Error : records not updated");

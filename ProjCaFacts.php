@@ -407,70 +407,178 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
      */
     public function getKitSubmissionId($qrscan) {
         $houseid    = $this->getHouseHoldId($qrscan);
-        $this->emDebug("Got the HHID + SURVEYID FROM qrscan", $qrscan, $houseid);
+        // $this->emDebug("Got the HHID + SURVEYID FROM qrscan", $qrscan, $houseid);
 
-        if(!empty($houseid)){
+        if(!empty($houseid["household_id"])){
             $part_id    = $houseid["survey_id"];
             $hh_id      = $houseid["household_id"];
             
             // GET MAIN PROJECT RECORD ID
-            $filter     = "[kit_household_code] = '" . $hh_id . "'";
-            $fields     = array("record_id","hhd_record_id","hhd_participant_id","dep_1_record_id", "dep_1_participant_id", "dep_2_record_id" ,"dep_2_participant_id");
-            $q          = \REDCap::getData($this->main_project, 'json', null , $fields  , null, null, false, false, false, $filter);
-            $results    = json_decode($q,true);
-            $main_record = null;
-            if(!empty($results)){
-                $main_record    = current($results);
-            }
-            // $this->emDebug("Scanned a test QR (participant_id + hh_id) use hh_id to find main record", $part_id, $hh_id, $main_record);
-
-            // GET THE PARTIPANT RECORD FROM KIT SUBMISSION
-            $filter     = "[participant_id] = '" . $part_id . "'";
-            $fields     = array("kit_upc_code", "record_id", "survey_type");
-            $q          = \REDCap::getData($this->kit_submission_project, 'json', null , $fields  , null, null, false, false, false, $filter);
-            $results    = json_decode($q,true);
-            // $this->emDebug("found the kit_submission_records", $results);
-
-            //FIRSt SAVE TO KITSUBMISSION (participant_id) THEN SAVE BACK TO MAIN PROJECT available slot
-            if(!empty($results) && count($results) == 1){
-                //TODO WHAT  do we do when we have multiple?  fuckin gauss.
-                $participant = current($results);
-
-                $matching_var   = null;
-                $kit_id         = null;
-                if($participant["survey_type"] == 1){
-                    //head of household
-                    $matching_var   = "hhd_participant_id";
-                    $kit_id         = "hhd_record_id";
-                }else{
-                    if(empty($main_record["dep_1_participant_id"])){
-                        $matching_var = "dep_1_participant_id";
-                        $kit_id       = "dep_1_record_id";
-                    }else{
-                        $matching_var = "dep_2_participant_id";
-                        $kit_id       = "dep_2_record_id";
-                    }
-                }
-                // SAVE TO REDCAP
-                if($matching_var && $kit_id){
-                    $data   = array(
-                        "record_id"        => $main_record["record_id"] ,
-                        $matching_var      => $part_id,
-                        $kit_id            => $participant["record_id"]
-                    );
-                    $result = \REDCap::saveData($this->main_project, 'json', json_encode(array($data)) );
-                    // $this->emDebug("updated main record", $data, $main_record, $participant);
-                }else{
-                    $this->emDebug("couldnt update main record");
+            // EVERY OUT GOING KIT MUST HAVE HAD an hh_id LINKED TO a single record.
+            $filter         = "[kit_household_code] = '" . $hh_id . "'";
+            $fields         = array("record_id","hhd_record_id","hhd_participant_id","dep_1_record_id", "dep_1_participant_id", "dep_2_record_id" ,"dep_2_participant_id");
+            $q              = \REDCap::getData($this->main_project, 'json', null , $fields  , null, null, false, false, false, $filter);
+            $main_results   = json_decode($q,true);
+            
+            if(!empty($main_results)){
+                // there should only be one.
+                $main_record  = current($main_results);
+                if(count($main_results) > 1){
+                    //TODO DELETE THIS WHEN CONFIDENT
+                    $this->emDebug("main results, should only be 1", count($main_results) );
                 }
                 
+                // GET THE PARTIPANT RECORD FROM KIT SUBMISSION IF ANY AND COPY BACK TO MAIN
+                $filter         = "[participant_id] = '" . $part_id . "'";
+                $fields         = array("kit_upc_code", "record_id", "survey_type", "kit_qr_input", "language",
+                                    "age","sex","age1","sex1","codename",
+                                    "age_s","sex_s","age1_s","sex1_s","codename_s",
+                                    "age_v","sex_v","age1_v","sex1_v","codename_v",
+                                    "age_m","sex_m","age1_m","sex1_m","codename_m",
+                                  );
+                $q              = \REDCap::getData($this->kit_submission_project, 'json', null , $fields  , null, null, false, false, false, $filter);
+                $ks_results     = json_decode($q,true);
+                $part_record_id = null;
+                $upc_var        = null;
+                $qr_var         = null;
+                
+                $age_prefix         = "age";
+                $sex_prefix         = "sex";
+                $codename_prefix    = "codename";
+                
+                //FIRSt SAVE TO KITSUBMISSION (participant_id) THEN SAVE BACK TO MAIN PROJECT available slot
+                if(!empty($ks_results)){
+                    //TODO WHAT  do we do when we have multiple? 
+                    foreach($ks_results as $participant){
+
+                        $lang           = $participant["language"];           
+                        switch($lang){
+                            case 2 :
+                                $suffix  = "_s";
+                            break;
+
+                            case 3 :
+                                $suffix  = "_v";
+                            break;
+
+                            case 4 :
+                                $suffix  = "_m";
+                            break;
+
+                            default:
+                                $suffix  = "";
+                            break;
+                        }
+
+                        // this is so annoying.
+                        $codename_value = $participant[$codename_prefix.$suffix];
+                        $age_value      = $participant[$age_prefix.$suffix];
+                        $sex_value      = $participant[$sex_prefix.$suffix];
+                        $age1_value     = $participant[$age_prefix."1".$suffix];
+                        $sex1_value     = $participant[$sex_prefix."1".$suffix];
+                        
+                        //Good as it gets
+                        $age_val        = $age_value ?: $age1_value;
+                        $sex_val        = $sex_value ?: $sex1_value;
+
+                        $part_record_id = $participant["record_id"];
+                        $matching_var   = null;
+                        $kit_id         = null;
+                        if($participant["survey_type"] == 1){
+                            //head of household
+                            $matching_var   = "hhd_participant_id";
+                            $kit_id         = "hhd_record_id";
+                            $upc_var        = "hhd_test_upc";
+                            $qr_var         = "hhd_test_qr";
+                            $age_var        = "hhd_age";
+                            $sex_var        = "hhd_sex";
+                            $codename_var   = "hhd_codename";
+                        }else{
+                            if(empty($main_record["dep_1_participant_id"]) || (!empty($main_record["dep_1_participant_id"]) && $main_record["dep_1_participant_id"] == $part_id) ){
+                                $matching_var   = "dep_1_participant_id";
+                                $kit_id         = "dep_1_record_id";
+                                $upc_var        = "dep_1_test_upc";
+                                $qr_var         = "dep_1_test_qr";
+                                $age_var        = "dep_1_age";
+                                $sex_var        = "dep_1_sex";
+                                $codename_var   = "dep_1_codename";
+                            }else{
+                                $matching_var   = "dep_2_participant_id";
+                                $kit_id         = "dep_2_record_id";
+                                $upc_var        = "dep_2_test_upc";
+                                $qr_var         = "dep_2_test_qr";
+                                $age_var        = "dep_2_age";
+                                $sex_var        = "dep_2_sex";
+                                $codename_var   = "dep_2_codename";
+                            }
+                        }
+
+                        // SAVE TO REDCAP
+                        $data   = array(
+                            "record_id"         => $main_record["record_id"] ,
+                            $matching_var       => $part_id,
+                            $upc_var            => $participant["kit_upc_code"],
+                            $qr_var             => $participant["kit_qr_input"],
+                            $age_var            => $age_val,
+                            $sex_var            => $sex_val,
+                            $codename_var       => $codename_value
+                        );
+                        if(count($ks_results) == 1){
+                            //leave the linking kit_submission id blank if there are multiple that need cleaning;
+                            $data[$kit_id] = $participant["record_id"];
+                        }else{
+                            $this->emDebug("Multiple KS results for $part_id");
+                        }
+                        // if particiapant survey was completed, we  need to copy all that data to Main Project where we can
+                        $result = \REDCap::saveData($this->main_project, 'json', json_encode(array($data)) );
+                        
+                        // all duplicates (w different record_ids). So just do one
+                        break;
+                    }
+                }else{
+                    //this just means no participant survey was filled out, but we still have an HHID! SO we can still update main record linkage
+                    // FIND FIRST AVAILABLE EMPTY
+                    $hhd    = $main_record["hhd_participant_id"];
+                    $dep1   = $main_record["dep_1_participant_id"];
+                    $dep2   = $main_record["dep_2_participant_id"];
+
+                    if( empty($hhd) || (!empty($hhd) && $hhd == $part_id) ){
+                        $matching_var   = "hhd_participant_id";
+                        $upc_var        = "hhd_test_upc";
+                        $qr_var         = "hhd_test_qr";
+                    }else if( empty($dep1) || (!empty($dep1) && $dep1 == $part_id) ){
+                        $matching_var   = "dep_1_participant_id";
+                        $upc_var        = "dep_1_test_upc";
+                        $qr_var         = "dep_1_test_qr";
+                    }else if( empty($dep2) || (!empty($dep2) && $dep2 == $part_id) ){
+                        $matching_var   = "dep_2_participant_id";
+                        $upc_var        = "dep_2_test_upc";
+                        $qr_var         = "dep_2_test_qr";
+                    }else{
+                        $matching_var = null;
+                    }
+
+                    if($matching_var){
+                        // SAVE TO REDCAP
+                        $data   = array(
+                            "record_id"        => $main_record["record_id"] ,
+                            $matching_var      => $part_id
+                        );
+                        $result = \REDCap::saveData($this->main_project, 'json', json_encode(array($data)) );
+                        $this->emDebug("No KS result found for $part_id save to matching $hh_id");
+                    }
+                }
+                $matched_result = array("record_id" => $part_record_id, "upc_var" => $upc_var, "qr_var" => $qr_var, "participant_id" => $part_id, "main_id" => $main_record["record_id"], "all_matches" => $ks_results);
+                return $matched_result;  // can be null
             }else{
-                // $this->emDebug("too many matching records man");
+                //every HH_id shoudl be accounted for since its required to ship out
+                $this->emDebug("NO matching records in Main Project", $hh_id);
             }
-            $matched_result = array("record_id" => $participant["record_id"], "participant_id" => $part_id, "main_id" => $main_record["record_id"], "all_matches" => $results);
-            return $matched_result;  // can be null
+        }else{
+            //should be 7 only
+            $this->emDebug("API didn't return anything for this qrscan", $qrscan);
         }
-        return false;
+        return null;
     }
     
     /**
@@ -827,8 +935,6 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
         Parse CSV to batchupload test Results
     */
     public function parseResultsCSVtoDB($file){
-        $this->emDebug("im in the parseCSV vfucnitoin", $file);
-
         $header_row = true;
         $file       = fopen($file['tmp_name'], 'r');
 
@@ -849,86 +955,85 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
             fclose($file);
         }
         
-        $success        = array();
-        $failed         = array();
+        $success            = array();
+        $failed             = array();
+
         $main_data_buffer   = array();
         $main_data_update   = array();
         $kit_data_update    = array();
+
         foreach($results as $rowidx => $result){
             $upc            = $result[0];
-            $test_returned  = $result[1];
-            $test_date      = $result[2];
+            $test_returned  = Date("Y-m-d", strtotime($result[1]));
+            $test_date      = Date("Y-m-d", strtotime($result[2]));
+            $test_batch     = $result[3];
             $test_result    = $result[4];
 
-            //FIRST FIND THE kit_submission_record by UPC
-            $filter     = "[kit_upc_code] = '" . $upc . "'";
-            $fields     = array("household_record_id","household_id","participant_id","record_id");
-            $q          = \REDCap::getData($this->kit_submission_project, 'json', null , $fields  , null, null, false, false, false, $filter);
-            $results    = json_decode($q,true);
-            if(!empty($results)){
-                $result         = current($results);
-
-                $kit_sub_id     = $result["record_id"];
-                $main_id        = $result["household_record_id"];
-                $part_id        = $result["participant_id"];
-                $household_id   = $result["household_id"];
-                
-                //UPDATE the [test_result] in Kit_submission record
-                $temp = array(
-                    "record_id"     => $kit_sub_id,
-                    "test_result"   => $test_result,
-                    "test_returned" => Date("Y-m-d", strtotime($test_returned) ),
-                    "test_date"     => Date("Y-m-d", strtotime($test_date) )
+            //FIND THE kit_submission_record(s) by UPC , POSSIBLE ITS NOT IN THERE if participant didnt comlete a survey, MORE LIKELY IN main Project, Also Possible there will be multiple
+            $filter         = "[kit_upc_code] = '" . $upc . "'";
+            $fields         = array("record_id");
+            $q              = \REDCap::getData($this->kit_submission_project, 'json', null , $fields  , null, null, false, false, false, $filter);
+            $kit_results    = json_decode($q,true);
+            foreach($kit_results as $result){
+                // SAVE RESULTS TO REDCAP
+                $data   = array(
+                    "record_id"     => $result["record_id"],
+                    "test_returned" => $test_returned,
+                    "test_date"     => $test_date,
+                    "test_batch"    => $test_batch,
+                    "test_result"   => $test_result
                 );
-                $data[] = $temp;
-                $this->emDebug("potential success save", $temp);
-                
-                // UPDATE the date completed in the main project
-                // get main Record from RC
-                if(array_key_exists($main_id, $main_data_buffer)){
-                    $main_result    = $main_data_buffer[$main_id];
-                }else{
-                    $fields         = array("hhd_record_id","hhd_participant_id","dep_1_record_id", "dep_1_participant_id", "dep_2_record_id" ,"dep_2_participant_id");
-                    $q              = \REDCap::getData($this->main_project, 'json', array($main_id) , $fields);
-                    $results        = json_decode($q,true);
-                    $main_result    = !empty($results) ? current($results) : array();
-                    $main_data_buffer[$main_id] = $main_result;
+                $r = \REDCap::saveData($this->kit_submission_project, 'json', json_encode(array($data)) );
+                if(!empty($r["errors"])){
+                    $this->emDebug("Error saving to kit_sub record " . $result["record_id"] , $r);
                 }
-                
-                if(!empty($main_result)){
-                    $check_ids  = array("hhd_record_id","dep_1_record_id","dep_2_record_id");
-                    $date_vars  = array("hhd_complete_date","dep_1_complete_date","dep_2_complete_date");
-                    $matching_var = null;
-                    foreach($check_ids as $idx => $check_id){
-                        if($main_result[$check_id] == $kit_sub_id){
-                            $matching_var = $date_vars[$idx];
-                            break;
-                        }
-                    }
-                    
-                    if($matching_var){
-                        // SAVE TO REDCAP
-                        if(isset($main_data_update[$main_id])){
-                            $main_data_update[$main_id][$matching_var ] = $test_date;
-                        }else{
-                            $main_data_update[$main_id]   = array(
-                                "record_id"             => $main_id,
-                                $matching_var           => $test_date
-                            );
-                        }
+            }
+
+            //FIND THE Main Record by UPC, Then figure out WHICH one it belongs to... and update the test result
+            $filter         = "[hhd_test_upc] = '" . $upc . "' OR [dep_1_test_upc] = '" . $upc . "' OR [dep_2_test_upc] = '" . $upc . "'";
+            $fields         = array("record_id","hhd_test_upc","dep_1_test_upc","dep_2_test_upc");
+            $q              = \REDCap::getData($this->main_project, 'json', null , $fields  , null, null, false, false, false, $filter);
+            $main_results   = json_decode($q,true);
+            if(!empty($main_results)){
+                $main_record  = current($main_results);
+                if(count($main_results) > 1){
+                    //TODO DELETE THIS WHEN CONFIDENT
+                    $this->emDebug("main results, should only be 1", count($main_results) );
+                }
+
+                $result_var         = null;
+                $complete_date_var  = null;
+                if($main_record["hhd_test_upc"] == $upc){
+                    $result_var         = "hhd_test_result";
+                    $complete_date_var  = "hhd_complete_date";
+                }else if($main_record["dep_1_test_upc"] == $upc){
+                    $result_var         = "dep_1_test_result";
+                    $complete_date_var  = "dep_1_complete_date";
+                }else if($main_record["hhd_test_dep_2_test_upcupc"] == $upc){
+                    $result_var         = "dep_2_test_result";
+                    $complete_date_var  = "dep_2_complete_date";
+                }
+
+                if($result_var && $complete_date_var){
+                    $data = array(
+                        "record_id"         => $main_record["record_id"],
+                        $result_var         => $test_result,
+                        $complete_date_var  => $test_date
+                    );
+                    $r  = \REDCap::saveData($this->main_project, 'json', json_encode(array($data)) );
+                    if(empty($r["errors"])){
+                        $success[] = $upc;
+                    }else{
+                        $this->emDebug("Error saving to main record " . $main_record["record_id"] , $r);
                     }
                 }
             }else{
-                //DO SOMETHING WITH RECORDS NOT FOUND?
-                $failed[] = $rowidx;
+                //Couldnt find the UPC in the main project?   
+                $failed[] = $upc;
+                $this->emDebug("Couldnt find $upc in main project");
             }
         }        
-        $r  = \REDCap::saveData($this->main_project, 'json', json_encode($main_data_update) );
-        $this->emDebug("did it not save to main?", $r);
-        $r  = \REDCap::saveData($this->kit_submission_project, 'json', json_encode($data) );
-        $this->emDebug("did it not save to kit sub?", $r);
-       
-        $success = $r["ids"];
+
         $return = array( "total" => count($results), "success" => count($success), "failed" => $failed );
         return $return;
     }
@@ -958,19 +1063,43 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
             fclose($file);
         }
         
-        $header_count   = count($headers);
         $success        = array();
         $failed         = array();
+
         foreach($results as $rowidx => $result){
             $qrscan     = $result[0];
             $upcscan    = $result[1];
 
             usleep( 500000 );
             $api_result = $this->getKitSubmissionId($qrscan);
-            // $api_result = array("record_id" => $participant["record_id"], "participant_id" => $part_id, "main_id" => $main_record["record_id"], "all_matches" => $results);
 
-            $this->emDebug("now what", $api_result, $qrscan, $upcscan);
-            if(isset($api_result["participant_id"])){
+            // SAVE linkage to Main Project
+            if(!empty($api_result["main_id"])){
+                $mainid         = $api_result["main_id"];
+                $which_upc      = $api_result["upc_var"];
+                $which_qr       = $api_result["qr_var"];
+
+
+                $temp   = array(
+                    "record_id"             => $mainid,
+                    $which_upc              => $upcscan,
+                    $which_qr               => $qrscan
+                );
+                
+                if($which_upc && $which_qr){
+                    $r  = \REDCap::saveData($this->main_project, 'json', json_encode(array($temp)) );
+                    if(!empty($r["errors"])){
+                        $this->emDebug("ERROR saving to main project, the UPC and main record_id", $rowidx, $r);
+                        $failed[]   = $rowidx;
+                    }else{
+                        $success[]  = $mainid;
+                    }
+                }else{
+                    $this->emDebug("no upc_var , or qr_var for record $record_id");
+                }
+            }
+
+            if(!empty($api_result["participant_id"])){
                 $record_id      = $api_result["record_id"];
                 $records        = $api_result["all_matches"];
                 $mainid         = $api_result["main_id"];
@@ -978,24 +1107,16 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
                 foreach($records as $result){
                     // SAVE TO REDCAP
                     $temp   = array(
-                        "record_id"         => $result["record_id"],
-                        "kit_upc_code"      => $upcscan,
-                        "kit_qr_input"      => $qrscan,
-                        "household_record_id" => $mainid
+                        "record_id"             => $result["record_id"],
+                        "kit_upc_code"          => $upcscan,
+                        "kit_qr_input"          => $qrscan,
+                        "household_record_id"   => $mainid
                     );
-                    
                     $r  = \REDCap::saveData('json', json_encode(array($temp)) );
-                    if(!empty($r["errors"])){
-                        $this->emDebug("save to kit_submit, the UPC and main record_id", $rowidx, $r["errors"]);
-                        $failed[]   = $rowidx;
-                    }else{
-                        $this->emDebug("succesful save", $r);
-                        $success[]  = $rowidx;
-                    }
                 }
             }else{
-                $this->emDebug("No API results for qrscan for row $rowidx");
-                $failed[]   = $rowidx;
+                // $this->emDebug("No API results for qrscan for row $rowidx");
+                $failed[]   = $result;
             }
         }        
         
