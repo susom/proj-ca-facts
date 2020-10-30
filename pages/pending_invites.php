@@ -20,7 +20,7 @@ if(!empty($_POST["action"])){
 
             $result     = $module->getHouseHoldId($qrscan);
             $hh_id      = $result["household_id"];
-            $part_id    = $result["survey_id"]; // THIS SHOULD BE THE HEAD OF HOUSEHOLD i hope  //
+            $part_id    = $result["survey_id"]; // THIS SHOULD BE THE HEAD OF HOUSEHOLD i ho pe, NOPE, dont bother //
 
             if($hh_id){
                 // TODO THIS IS WHERE I FAKE IT UNTIL WE GO LIVE?
@@ -46,7 +46,6 @@ if(!empty($_POST["action"])){
                     "record_id"             => $record_id,
                     "kit_qr_code"           => $qrscan,
                     "kit_household_code"    => $hh_id,
-                    "hhd_participant_id"    => $part_id,
                     "xps_booknumber"        => "pending"
                 );
                 $r      = \REDCap::saveData($pid, 'json', json_encode(array($data)) );
