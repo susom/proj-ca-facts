@@ -431,10 +431,11 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
                 // GET THE PARTIPANT RECORD FROM KIT SUBMISSION IF ANY AND COPY BACK TO MAIN
                 $filter         = "[participant_id] = '" . $part_id . "'";
                 $fields         = array("kit_upc_code", "record_id", "survey_type", "kit_qr_input", "language",
-                                    "age","sex","age1","sex1","codename",
-                                    "age_s","sex_s","age1_s","sex1_s","codename_s",
-                                    "age_v","sex_v","age1_v","sex1_v","codename_v",
-                                    "age_m","sex_m","age1_m","sex1_m","codename_m",
+                                    "age","sex","age1","sex1","codename", "covid1",
+                                    "age_s","sex_s","age1_s","sex1_s","codename_s", "covid1_s",
+                                    "age_v","sex_v","age1_v","sex1_v","codename_v", "covid1_v",
+                                    "age_m","sex_m","age1_m","sex1_m","codename_m", "covid1_m"
+                                    
                                   );
                 $q              = \REDCap::getData($this->kit_submission_project, 'json', null , $fields  , null, null, false, false, false, $filter);
                 $ks_results     = json_decode($q,true);
@@ -445,6 +446,7 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
                 $age_prefix         = "age";
                 $sex_prefix         = "sex";
                 $codename_prefix    = "codename";
+                $covid_prefix       = "covid1";
                 
                 //FIRSt SAVE TO KITSUBMISSION (participant_id) THEN SAVE BACK TO MAIN PROJECT available slot
                 if(!empty($ks_results)){
@@ -472,6 +474,7 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
 
                         // this is so annoying.
                         $codename_value = $participant[$codename_prefix.$suffix];
+                        $covid_value    = $participant[$covid_prefix.$suffix];
                         $age_value      = $participant[$age_prefix.$suffix];
                         $sex_value      = $participant[$sex_prefix.$suffix];
                         $age1_value     = $participant[$age_prefix."1".$suffix];
@@ -492,6 +495,7 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
                             $qr_var         = "hhd_test_qr";
                             $age_var        = "hhd_age";
                             $sex_var        = "hhd_sex";
+                            $covid_var      = "hhd_covid_guess";
                             $codename_var   = "hhd_codename";
                         }else{
                             if(empty($main_record["dep_1_participant_id"]) || (!empty($main_record["dep_1_participant_id"]) && $main_record["dep_1_participant_id"] == $part_id) ){
@@ -501,6 +505,7 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
                                 $qr_var         = "dep_1_test_qr";
                                 $age_var        = "dep_1_age";
                                 $sex_var        = "dep_1_sex";
+                                $covid_var      = "dep_1_covid_guess";
                                 $codename_var   = "dep_1_codename";
                             }else{
                                 $matching_var   = "dep_2_participant_id";
@@ -509,6 +514,7 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
                                 $qr_var         = "dep_2_test_qr";
                                 $age_var        = "dep_2_age";
                                 $sex_var        = "dep_2_sex";
+                                $covid_var      = "dep_2_covid_guess";
                                 $codename_var   = "dep_2_codename";
                             }
                         }
@@ -521,6 +527,7 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
                             $qr_var             => $participant["kit_qr_input"],
                             $age_var            => $age_val,
                             $sex_var            => $sex_val,
+                            $covid_var          => $covid_value,
                             $codename_var       => $codename_value
                         );
                         if(count($ks_results) == 1){
