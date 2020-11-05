@@ -48,6 +48,11 @@ if(!empty($_POST["action"])){
             }
         break;
 
+        case "getHHID" :
+            $qrscan = $_POST["qrscan"] ?? null;
+            $result = $module->getHouseHoldId($qrscan);
+        break;
+
         default:
         break;
     }
@@ -88,6 +93,9 @@ if($em_mode != "kit_submission"){
         $link_kit_upc       = $module->getUrl("pages/link_kit_upc.php");
     ?>
     <style>
+        #resultjson {
+            display:none;
+        }
         #pending_invites div{
             display:inline-block;
         }
@@ -214,30 +222,21 @@ if($em_mode != "kit_submission"){
         }
     </style>
     
-    <!-- 
-        <h4>Test Kit / Testtube UPC Linkage</h4>
-        <p>To link the returned Test Kit to a Test Tube UPC:</p>
-        
+    
+        <h4>Verify QR</h4>
         <br>
         <br>
         <section id="pending_invites">
         <div class='qrscan align-top'>
-            <h6 class="next_step">1. Click input and scan QR Code</h6>
-            <label for='test_kit_qr'></label><input type='text' name='kit_qr_code' id='test_kit_qr' placeholder="Scan Test Kit QR"/>
-            <div class="d-block ml-2"><button class="btn btn-sm btn-info ml-5" id="copytoclip">Copy to Clipboard</button></div>
-        </div>
-
-        <div class='upcscan align-top'>
-            <h6>2. scan test tube UPC</h6>
-            <label for='test_kit_upc'></label><input type='text' name='kit_upc_code' id='test_kit_upc' placeholder="Scan Test Tube UPC"/>
+            <h6 class="next_step">Check QR Code</h6>
+            <input type='text' name='kit_qr_code' id="checkQR"/><label for='checkQR'></label> <button class="btn btn-lg btn-primary">search</button>
+            <pre id='resultjson'></pre>
         </div>
     </section>
+  
+    <br><br>
     <hr>
-    <a href="<?=$link_kit_upc?>" id="reset_link_upc" type="button" class="btn btn-lg btn-primary">Scan/Link a new Test Kit</a>
-    
-    <br><br> -->
-    <!-- <hr>
-    <br><br> -->
+    <br><br>
 
 
     <h4>Bulk Upload Test Kit QR to Test Tube UPC [CSV]</h4>
@@ -259,63 +258,42 @@ if($em_mode != "kit_submission"){
             // UI UX 
 
             // TAKING SCAN INPUT AND GETTING houshold id
-            $("input[name='kit_qr_code']").on("input", function(){
+            $("input[name='kit_qr_code']").on("focus", function(){
+                $(this).val("");
+                $(this).css("color","initial");
+                $("#resultjson").hide();
+            });
+            
+            $("input[name='kit_qr_code']").on("blur", function(){
                 var _el = $(this);
 
-                console.log("on input val", _el.val());
                 //give it a second for the input to populate.
-                setTimeout(function(){
-                    var qrscan = _el.val();
-                    console.log("input val after 1sec delay", _el.val());
+                var qrscan = _el.val();
 
-                    $.ajax({
-                        method: 'POST',
-                        data: {
-                                "action"    : "getSubmissionId",
-                                "qrscan"    : qrscan
-                        },
-                        dataType: 'json'
-                    }).done(function (result) {
-                        // need not found condition?
-                        $(".upcscan").addClass("loading");
+                $.ajax({
+                    method: 'POST',
+                    data: {
+                            "action"    : "getHHID",
+                            "qrscan"    : qrscan
+                    },
+                    dataType: 'json'
+                }).done(function (result) {
+                    var hhid    = result["household_id"];
+                    var partid  = result["survey_id"];
 
-                        if(result["error"]){
-                            _el.css("color","red");
-                            $(".upcscan").removeClass("loading");
-                            _el.focus();
-
-                            console.log("there was an error, give it enough time on screen to copy paste it");
-                            return;
-                        }
-
-                        setTimeout(function(){
-                            _el.attr("disabled","disabled");
-                            _el.css("color","green");
-                            $("#test_kit_upc").focus();
-                            $(".upcscan").removeClass("loading");
-
-                            $(".qrscan h6").addClass("step_used");
-                            
-                            var kit_records   = result["all_matches"];
-                            var record_ids    = [];
-                            for(var i in kit_records){
-                                record_ids.push(kit_records[i]['record_id']);
-                            }
-                            console.log("kit records", result);
-                            $("input[name='kit_upc_code']").attr("data-kitrecords",record_ids);
-                            $("input[name='kit_upc_code']").attr("data-mainrecordid",result["main_id"]);
-
-                            $(".upcscan h6").addClass("next_step");
-                        },750);
-                    }).fail(function () {
-                        console.log("something failed");
+                    // need not found condition?
+                    if(!hhid){
                         _el.css("color","red");
-                        _el.val("");
-                        _el.attr("placeholder","No Match, Scan Again");
-                        _el.focus();
-                    });
-                },5000);
-                
+                        return;
+                    }
+
+                    _el.css("color","green");
+                    var pretty  = JSON.stringify(result, undefined, 4);
+                    $("#resultjson").text(pretty);
+                    $("#resultjson").show();
+                }).fail(function () {
+                    _el.css("color","red");
+                });
             });
 
             $("input[name='kit_upc_code']").on("input", function(){
@@ -368,10 +346,6 @@ if($em_mode != "kit_submission"){
                 document.execCommand('copy');
                 return false;
             });
-
-            //be here when the page loads
-            $("input[name='kit_qr_code']").focus();
-
 
 
             $("#upload_btn").click(function(){
