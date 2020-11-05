@@ -1016,7 +1016,7 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
                 }else if($main_record["dep_1_test_upc"] == $upc){
                     $result_var         = "dep_1_test_result";
                     $complete_date_var  = "dep_1_complete_date";
-                }else if($main_record["hhd_test_dep_2_test_upcupc"] == $upc){
+                }else if($main_record["dep_2_test_upc"] == $upc){
                     $result_var         = "dep_2_test_result";
                     $complete_date_var  = "dep_2_complete_date";
                 }
