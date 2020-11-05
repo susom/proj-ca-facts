@@ -223,12 +223,10 @@ if($em_mode != "kit_submission"){
     </style>
     
     
-        <h4>Verify QR</h4>
-        <br>
-        <br>
+        <h4>Verify QR CODE (will return data if found in API)</h4>
         <section id="pending_invites">
         <div class='qrscan align-top'>
-            <h6 class="next_step">Check QR Code</h6>
+            <h6 class="next_step">Check Valid QR Code</h6>
             <input type='text' name='kit_qr_code' id="checkQR"/><label for='checkQR'></label> <button class="btn btn-lg btn-primary">search</button>
             <pre id='resultjson'></pre>
         </div>
