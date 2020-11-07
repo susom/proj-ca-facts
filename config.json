@@ -60,6 +60,11 @@
 	        "name": "CA-FACTS Unique Acess Code Generator",
 	        "icon": "gear",
 	        "url": "pages/unique_ac.php"
+	      },
+		  {
+	        "name": "CA-FACTS Results Sent Check Off",
+	        "icon": "gear",
+	        "url": "pages/results_checkoff.php"
 	      }
 		],
 		"control-center": [
@@ -77,6 +82,7 @@
 		"pages/kitsubmission",
 		"pages/kit_return_scan",
 		"pages/upload_results",
+		"pages/results_checkoff",
 		"getAsset"
 	],
 

@@ -68,18 +68,18 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
 		// THIS IS SO IMPORTANT FOR DOING THE DAGS
         // $_SESSION["username"] = \ExternalModules\ExternalModules::getUsername();
         
-        $proj_links = array("CA-FACTS Pending Invites Report", "CA-FACTS Bulk Upload Lab Results", "CA-FACTS Test Kit / UPC Linkage","CA-FACTS Return Scan","CA-FACTS Unique Acess Code Generator");
+        $proj_links = array("CA-FACTS Pending Invites Report", "CA-FACTS Bulk Upload Lab Results", "CA-FACTS Test Kit / UPC Linkage","CA-FACTS Return Scan","CA-FACTS Unique Acess Code Generator", "CA-FACTS Results Sent Check Off");
         switch($project_id){
             case $this->main_project:
                 $hide_links = array(4);
             break;
 
             case $this->kit_submission_project:
-                $hide_links = array(0,1,2,3,4);
+                $hide_links = array(0,1,2,3,4, 5);
             break;
 
             default:
-                $hide_links = array(0, 1, 2,3);
+                $hide_links = array(0, 1, 2,3, 5);
             break;
         }
 		?>
@@ -1042,6 +1042,68 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
         }        
 
         $return = array( "total" => count($results), "success" => count($success), "failed" => $failed );
+        return $return;
+    }
+ 
+    /* 
+        Parse CSV to batchupload test Results
+    */
+    public function parseResultsSentCSV($file){
+        $header_row = true;
+        $file       = fopen($file['tmp_name'], 'r');
+
+        $headers    = array();
+        $results    = array();
+
+        if($file){
+            while (($line = fgetcsv($file)) !== FALSE) {
+                if($header_row){
+                    // adding extra column to determine which file the data came from
+                    $headers 	= $line;
+                    $header_row = false;
+                }else{
+                    // adding extra column to determine which csv file the data came from
+                    array_push($results, $line);
+                }
+            }
+            fclose($file);
+        }
+
+        $results_sent_date  = Date("Y-m-d");
+        $data               = array();
+        $this->emDebug("results sent date", $results_sent_date);
+        foreach($results as $rowidx => $result){
+            $which_var          = null;
+            $main_record_id     = $result[0];
+
+            if( in_array("Head of Household Test UPC", $headers) ){
+                $which_var = "hhd_result_sent";
+            }else if( in_array("Dependent 1 Test UPC", $headers) ){
+                $which_var = "dep_1_result_sent";
+            }else if( in_array("Dependent 2 Test UPC", $headers) ){
+                $which_var = "dep_2_result_sent";
+            }
+            
+            if($which_var){
+                $temp = array(
+                    "record_id"         => $main_record_id,
+                    $which_var          => 1
+                );
+                // $temp[$which_var_date] = $results_sent_date;
+                $data[]  = $temp;
+            }else{
+                $this->emDebug("wtf couldnt find headers label?", $headers);
+            }
+        }        
+        $r  = \REDCap::saveData($this->main_project, 'json', json_encode($data) );
+        if(empty($r["errors"])){
+            $success = $r["item_count"];
+            $this->emDebug("All Records Saved", $r);
+        }else{
+            $this->emDebug("Error saving some(?) records", $r);
+            $success = 0;  //? are there partial succcess is it all or none?
+        }
+        $return = array( "success" => $success , "errors" => $r["errors"], "total_rows" => count($results) );
         return $return;
     }
 
