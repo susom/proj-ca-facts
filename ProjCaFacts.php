@@ -68,14 +68,14 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
 		// THIS IS SO IMPORTANT FOR DOING THE DAGS
         // $_SESSION["username"] = \ExternalModules\ExternalModules::getUsername();
         
-        $proj_links = array("CA-FACTS Pending Invites Report", "CA-FACTS Bulk Upload Lab Results","CA-FACTS Test Kit / UPC Linkage","CA-FACTS Return Scan","CA-FACTS Unique Acess Code Generator");
+        $proj_links = array("CA-FACTS Pending Invites Report", "CA-FACTS Bulk Upload Lab Results", "CA-FACTS Test Kit / UPC Linkage","CA-FACTS Return Scan","CA-FACTS Unique Acess Code Generator");
         switch($project_id){
             case $this->main_project:
-                $hide_links = array(1,2,3,4);
+                $hide_links = array(4);
             break;
 
             case $this->kit_submission_project:
-                $hide_links = array(0,4);
+                $hide_links = array(0,1,2,3,4);
             break;
 
             default:
@@ -1119,7 +1119,7 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
                         "kit_qr_input"          => $qrscan,
                         "household_record_id"   => $mainid
                     );
-                    $r  = \REDCap::saveData('json', json_encode(array($temp)) );
+                    $r  = \REDCap::saveData($this->kit_submission_project, 'json', json_encode(array($temp)) );
                 }
             }else{
                 // $this->emDebug("No API results for qrscan for row $rowidx");

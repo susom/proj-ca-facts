@@ -64,22 +64,6 @@ if(!empty($_POST["action"])){
 require_once APP_PATH_DOCROOT . 'ProjectGeneral/header.php';
 
 $em_mode = $module->getProjectSetting("em-mode");
-if($em_mode != "kit_submission"){
-    ?>
-<div style='margin:20px 0;'>
-    <h4>Test Kit / Testtube UPC Linkage</h4>
-    <p>Please open this report in the Kit Submission Project.</p>
-
-    <br>
-    <br>
-
-    <h4>Enabled Projects (3 Required)</h4>
-    <div>
-        <?php echo $module->displayEnabledProjects(array("access_code_db" => $XML_AC_PROJECT_TEMPLATE, "kit_order" => $XML_KO_PROJECT_TEMPLATE, "kit_submission" => $XML_KS_PROJECT_TEMPLATE)  ) ?>
-    </div>
-</div>
-    <?php
-}else{
 ?>
 <div style='margin:20px 40px 0 0;'>
     
@@ -417,5 +401,5 @@ if($em_mode != "kit_submission"){
         });
     </script>
 </div>
-<?php } ?>
+
 

@@ -8,6 +8,7 @@ if(!empty($_POST["action"])){
     switch($action){
         case "kitReturned":
             $usps_track     = $_POST["usps_track"] ?? null;
+            //strip out this common prefix from USPS codes. (should put this in EM settings?);
             $usps_track     = str_replace("420943055102","",$usps_track);
 
             if($usps_track){
