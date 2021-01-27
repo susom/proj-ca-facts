@@ -68,18 +68,18 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
 		// THIS IS SO IMPORTANT FOR DOING THE DAGS
         // $_SESSION["username"] = \ExternalModules\ExternalModules::getUsername();
         
-        $proj_links = array("CA-FACTS Pending Invites Report", "CA-FACTS Bulk Upload Lab Results", "CA-FACTS Test Kit / UPC Linkage","CA-FACTS Return Scan","CA-FACTS Unique Acess Code Generator", "CA-FACTS Results Sent Check Off");
+        $proj_links = array("CA-FACTS Pending Invites Report", "CA-FACTS Bulk Upload Lab Results", "CA-FACTS Test Kit / UPC Linkage","CA-FACTS Return Scan","CA-FACTS Unique Acess Code Generator", "CA-FACTS Results Sent Check Off", "CA-FACTS Reconcile Submission - Main");
         switch($project_id){
             case $this->main_project:
                 $hide_links = array(4);
             break;
 
             case $this->kit_submission_project:
-                $hide_links = array(0,1,2,3,4, 5);
+                $hide_links = array(0,1,2,3,4, 5, 6);
             break;
 
             default:
-                $hide_links = array(0, 1, 2,3, 5);
+                $hide_links = array(0, 1, 2,3, 5,6);
             break;
         }
 		?>
@@ -609,45 +609,200 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
      * Once household_id is obtained, need to pregenerate records in kit_submission project
      * @return array of recordids created
      */
-    public function linkKits($main_record_id, $number_of_kits, $household_id, $head_of_household_id){
+    public function linkKits(){
         // Set all appropriate project IDs
         $this->getAllSupportProjects();
 
-        $new_ids = array();
-        for ($i =1 ; $i <= $number_of_kits; $i++){
-            $next_id = $this->getNextAvailableRecordId($this->kit_submission_project);
+        $household_ids  = array();
+        $hh_id          = array();
+        $dep_1_id       = array();
+        $dep_2_id       = array();
+        $all_submission         = array();
+        $unlinked_submission    = array();
 
-            $part_id = "";
-            if($i == 1){
-                $part_id    = $head_of_household_id;
-                $link_var   = "hhd_record_id";
-            }
-            if($i == 2){
-                $link_var   = "dep_1_record_id";
-            }
-            if($i == 3){
-                $link_var   = "dep_2_record_id";
-            }
+        $save_data_submission   = array();
+        $save_data_mp           = array();
 
-            // SAVE TO REDCAP
-            $data   = array(
-                "record_id"             => $next_id,
-                "household_record_id"   => $main_record_id,
-                "participant_id"        => $part_id,
-                "household_id"          => $household_id
-            );
-            
-            $r = \REDCap::saveData($this->kit_submission_project, 'json', json_encode(array($data)) );
+        $no_match_ks            = array();
+        $no_match_mp            = array();
 
-            // TODO THIS MAY NOT BE NECESSARY
-            // Save Submission ID ?  // NOT SURE HOW THE ACTUAL PART ID GONNA LINK UP FROM GAUSS END
-            $data   = array(
-                "record_id"             => $main_record_id,
-                $link_var               => $next_id
-            );
-            $r = \REDCap::saveData($this->main_project, 'json', json_encode(array($data)) );
+        //SEARCH kit submission, GET ALL Records and their linked/null main record id 
+        $params	= array(
+            "project_id"    => $this->kit_submission_project, 
+            'return_format' => 'json',
+			'fields'        => array("record_id", "household_id", "participant_id", "survey_type", "household_record_id"),
+            'filterLogic'   => "[participant_id] <> ''"
+		);
+        $q 			= \REDCap::getData($params);
+        $records 	= json_decode($q, true);
+        foreach($records as $record){
+            $part_id    = $record["participant_id"];
+            $s_type     = $record["survey_type"];
+            $all_submission[$part_id] = array(
+                "record_id"     => $record["record_id"], 
+                "survey_type"   => $s_type,
+                "household_record_id"   => $record["household_record_id"] 
+            ) ;
         }
-        return $new_ids;
+        $unlinked_submission = array_filter($all_submission, function($v){
+            return empty($v["main_record"]);
+        });
+
+        //head of household id but no linking submission id (they maynot exist)
+        $params	= array(
+            'return_format' => 'json',
+			'fields'        => array("record_id","kit_household_code", "hhd_participant_id", "hhd_record_id"),
+            'filterLogic'   => "[kit_household_code] <> '' AND ( ([hhd_participant_id] <> '' AND [hhd_record_id] = '') )"
+		);
+        $q 			= \REDCap::getData($params);
+        $records 	= json_decode($q, true);
+        foreach($records as $record){
+            $part_id = $record["hhd_participant_id"];
+            $rec_id  = $record["record_id"];
+
+            array_push($household_ids, $record["kit_household_code"]);
+            $hh_id[] = $rec_id;
+
+            if(array_key_exists($part_id, $all_submission)){
+                // $this->emDebug("found matching kit submission , linking KS record_id", $all_submission[$part_id]["household_record_id"]);
+                $save_data_mp[$rec_id] = array(
+                    "record_id" => $rec_id,
+                    "hhd_record_id" => $all_submission[$part_id]["record_id"]
+                );
+            }else{
+                // $this->emDebug("no matching kit submission , record_id for " . $rec_id);
+                $no_match_mp[] = array(
+                    "record_id" => $rec_id,
+                    "participant" => "hhd_participant_id",
+                    "participant_id" => $part_id
+                );
+            }
+        }
+
+        //dep 1 id but no linking submission id
+        $params	= array(
+            'return_format' => 'json',
+			'fields'        => array("record_id","kit_household_code", "dep_1_participant_id", "dep_1_record_id"),
+            'filterLogic'   => "[kit_household_code] <> '' AND ( ([dep_1_participant_id] <> '' AND [dep_1_record_id] = '') )"
+		);
+        $q 			= \REDCap::getData($params);
+        $records 	= json_decode($q, true);
+        foreach($records as $record){
+            $part_id = $record["dep_1_participant_id"];
+            $rec_id  = $record["record_id"];
+
+            array_push($household_ids, $record["kit_household_code"]);
+            $dep_1_id[$part_id] = $rec_id;
+
+            if(array_key_exists($part_id, $all_submission)){
+                // $this->emDebug("found matching kit submission , linking KS record_id", $all_submission[$part_id]["household_record_id"]);
+                $temp = array(
+                    "record_id" => $rec_id,
+                    "dep_1_record_id" => $all_submission[$part_id]["record_id"]
+                );
+                if(array_key_exists($rec_id, $save_data_mp)){
+                    $this->emDebug("dupe!", $rec_id);
+                    $temp = array_unique(array_merge($save_data_mp[$rec_id], $temp));
+                }
+                $save_data_mp[$rec_id] = $temp;
+            }else{
+                // $this->emDebug("no matching kit submission , record_id for " . $rec_id);
+                $no_match_mp[] = array(
+                    "record_id" => $rec_id,
+                    "participant" => "dep_1_record_id",
+                    "participant_id" => $part_id
+                );
+            }
+        }
+
+        //dep 2 id but no linking submission id
+        $params	= array(
+            'return_format' => 'json',
+			'fields'        => array("record_id","kit_household_code", "dep_2_participant_id", "dep_2_record_id"),
+            'filterLogic'   => "[kit_household_code] <> '' AND ( ([dep_2_participant_id] <> '' AND [dep_2_record_id] = '') )"
+		);
+        $q 			= \REDCap::getData($params);
+        $records 	= json_decode($q, true);
+        foreach($records as $record){
+            $part_id = $record["dep_2_participant_id"];
+            $rec_id  = $record["record_id"];
+
+            array_push($household_ids, $record["kit_household_code"]);
+            $dep_2_id[$part_id] = $rec_id;
+
+            if(array_key_exists($part_id, $all_submission)){
+                // $this->emDebug("found matching kit submission , linking KS record_id", $all_submission[$part_id]["household_record_id"], $rec_id);
+                $temp = array(
+                    "record_id" => $rec_id,
+                    "dep_2_record_id" => $all_submission[$part_id]["record_id"]
+                );
+                if(array_key_exists($rec_id, $save_data_mp)){
+                    $this->emDebug("dupe!", $rec_id);
+                    $temp = array_unique(array_merge($save_data_mp[$rec_id], $temp));
+                }
+                $save_data_mp[$rec_id] = $temp;
+            }else{
+                // $this->emDebug("no matching kit submission , record_id for " . $rec_id);
+                $no_match_mp[] = array(
+                    "record_id" => $rec_id,
+                    "participant" => "dep_2_record_id",
+                    "participant_id" => $part_id
+                );
+            }
+        }
+        $r = \REDCap::saveData($this->main_project ,'json', json_encode($save_data_mp) );
+        if(empty($r["errors"])){
+            $this->emDebug("Main Project Linkage Made : " . count($save_data_mp) . " records saved");
+            $mp_saved = true;
+        }else{
+            $this->emDebug("ERRORS saving Main Project Linkage: " ,  $r["errors"] );
+        }
+
+        // combine dep 1 and 2
+        $problem_dep_id = array_merge($dep_1_id, $dep_2_id);
+
+        //link submission records with participant id with a main record id
+        foreach($unlinked_submission as $part_id => $unlinked){
+            $submission_record_id = $unlinked["record_id"];
+            if($unlinked["survey_type"] == 1){
+                if(array_key_exists($part_id, $hh_id)){
+                    $save_data_submission[] = array(
+                        "record_id"             => $submission_record_id,
+                        "household_record_id"   => $hh_id[$part_id]
+                    );
+                }else{
+                    // $this->emDebug("no household match");
+                    $no_match_ks[$submission_record_id] = array("participant_id" => $part_id, "head_of_household" => true);
+                }
+            }else{
+                //type 2
+                if(array_key_exists($part_id, $problem_dep_id)){
+                    $save_data_submission[] = array(
+                        "record_id"             => $submission_record_id,
+                        "household_record_id"   => $problem_dep_id[$part_id]
+                    );
+                }else{
+                    // $this->emDebug("no dependent match");
+                    $no_match_ks[$submission_record_id] =  array("participant_id" => $part_id, "head_of_household" => false);
+                }
+            }
+        }
+        $r = \REDCap::saveData($this->kit_submission_project ,'json', json_encode($save_data_submission) );
+        if(empty($r["errors"])){
+            $this->emDebug("Kit Submssion Linkage Made : " . count($save_data_submission) . " records saved");
+            $ks_saved = true;
+        }else{
+            $this->emDebug("ERRORS saving Kit Submission Linkage: " ,  $r["errors"] );
+        }
+
+        return array(
+            // "all_submission"        => $all_submission,
+            "savedata_submission"   => $save_data_submission,
+            "savedata_mp"           => $save_data_mp,
+            "no_match_ks"           => $no_match_ks ,
+            "no_match_mp"           => $no_match_mp ,        
+        );
+        
     }  
     /**
      * Takes the result of a scan and sends off to Gauss to return ID

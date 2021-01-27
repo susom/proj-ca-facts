@@ -65,6 +65,12 @@
 	        "name": "CA-FACTS Results Sent Check Off",
 	        "icon": "gear",
 	        "url": "pages/results_checkoff.php"
+		  }
+		  ,
+		  {
+	        "name": "CA-FACTS Reconcile Submission - Main",
+	        "icon": "gear",
+	        "url": "pages/reconcile_submissions.php"
 	      }
 		],
 		"control-center": [
