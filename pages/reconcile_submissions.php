@@ -2,18 +2,52 @@
 namespace Stanford\ProjCaFacts;
 /** @var \Stanford\ProjCaFacts\ProjCaFacts $module */
 
-if(!empty($_POST["action"])){
-    $action = $_POST["action"];
+if(!empty($_REQUEST["action"])){
+    $action = $_REQUEST["action"];
+
     switch($action){
-        case "saveField":
-            $field_type  = $_POST['field_type'];
-            if($field_type == "file"){
-                $file       = current($_FILES);
-                $result     = $module->parseResultsSentCSV($file);
+        case "download":
+            $raw    = json_decode($_REQUEST["data"],1);
+            $name   = $_REQUEST["filename"];
+
+            $data = array();
+            if($name == "main_has_upc_no_submission"){
+                array_push($data, implode("," , array("record_id", "test_upc", "participant_id", "household_member")));
+                foreach($raw as $rec_id => $hh){
+                    foreach($hh as $part){
+                        $participant    = $part["participant"];
+                        $test_upc       = $part["test_upc"];
+                        $participant_id = $part["participant_id"];
+
+                        array_push($data, implode("," , array($rec_id,$test_upc,$participant_id, $participant)) );
+                    }
+                }                
+            }else{
+                //submission_no_matching_main
+                // $module->emDebug(current($raw));
+                array_push($data, implode("," , array("record_id", "participant_id", "household_id", "head_of_household?")));
+                
+                foreach($raw as $rec_id => $main_record){
+                    $part_id    = $main_record["participant_id"];
+                    $hhd        = $main_record["head_of_household"] ? "Yes" : "No"; 
+                    $hhd_id     = $main_record["household_id"] ?? null;
+                    array_push($data, implode("," , array($rec_id, $part_id, $hhd_id, $hhd)) );
+                }
+                // $module->emDebug($data);
             }
 
-            echo "<p id='upload_results'>".json_encode($result)."</p>";
-            exit;
+            
+            header('Content-Type: text/csv');
+            header('Content-Disposition: attachment; filename="'.$name.'.csv"');
+            
+            $fp = fopen('php://output', 'wb');
+            foreach ( $data as $line ) {
+                $val = explode(",", $line);
+                fputcsv($fp, $val);
+            }
+            fclose($fp);
+
+        exit;
         break;
 
         default:
@@ -27,6 +61,10 @@ if(!empty($_POST["action"])){
 require_once APP_PATH_DOCROOT . 'ProjectGeneral/header.php';
 
 $main_records = $module->linkKits();
+
+
+
+
 ?>
 <div style='margin:20px 40px 0 0;'>
     <h4>Reconcile Main Household Records with Kit Submissions Database</h4>
@@ -43,6 +81,12 @@ $main_records = $module->linkKits();
     <hr>
     <br>
     <h4>Kit Order - Has UPC / No Matching Kit Submission Record(s)</h4>
+    <form method="POST">
+        <input type="hidden" name="action" value="download"/>
+        <input type="hidden" name="data" value='<?= json_encode($main_records["no_match_mp"]) ?>'>
+        <input type="hidden" name="filename" value="main_has_upc_no_submission">
+        <button class="btn btn-info">Download .csv</button>
+    </form>
     <style>
         .no_matches th:first-child,
         .no_matches td:first-child{
@@ -84,6 +128,12 @@ $main_records = $module->linkKits();
     
     <br>
     <h4>Kit Submission - No Matching Main Record?</h4>
+    <form method="POST">
+        <input type="hidden" name="action" value="download"/>
+        <input type="hidden" name="data" value='<?= json_encode($main_records["no_match_ks"]) ?>'>
+        <input type="hidden" name="filename" value="submission_no_matching_main">
+        <button class="btn btn-info">Download .csv</button>
+    </form>
     <table class='no_matches' border="1" width="98%">
     <thead>
     <tr>
