@@ -613,7 +613,6 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
         // Set all appropriate project IDs
         $this->getAllSupportProjects();
 
-        $household_ids  = array();
         $hh_id          = array();
         $dep_1_id       = array();
         $dep_2_id       = array();
@@ -642,18 +641,20 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
                 "record_id"     => $record["record_id"], 
                 "survey_type"   => $s_type,
                 "household_record_id"   => $record["household_record_id"] ,
-                "household_id" => $record["household_id"]
+                "household_id"          => $record["household_id"]
             ) ;
         }
         $unlinked_submission = array_filter($all_submission, function($v){
-            return empty($v["main_record"]);
+            return empty($v["household_record_id"]);
         });
+        $this->emDebug("ALL kit submission where participant id != empty", count($all_submission) );
+        $this->emDebug("UNLINKED kit submission where household_record_id is empty",count($unlinked_submission) );
 
         //head of household id but no linking submission id (they maynot exist)
         $params	= array(
             'return_format' => 'json',
 			'fields'        => array("record_id","kit_household_code", "hhd_participant_id", "hhd_record_id", "hhd_test_upc"),
-            'filterLogic'   => "[kit_household_code] <> '' AND ( ([hhd_participant_id] <> '' AND [hhd_record_id] = '' AND [hhd_test_upc] <> '') )"
+            'filterLogic'   => "[kit_household_code] <> '' AND ( ([hhd_participant_id] <> '' AND [hhd_record_id] = '' ) )"
 		);
         $q 			= \REDCap::getData($params);
         $records 	= json_decode($q, true);
@@ -662,7 +663,6 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
             $rec_id     = $record["record_id"];
             $test_upc   = $record["hhd_test_upc"];
 
-            array_push($household_ids, $record["kit_household_code"]);
             $hh_id[] = $rec_id;
 
             if(array_key_exists($part_id, $all_submission)){
@@ -674,18 +674,19 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
             }else{
                 // $this->emDebug("no matching kit submission , record_id for " . $rec_id);
                 $no_match_mp[$rec_id] = array( array(
-                    "participant" => "hhd_participant_id",
-                    "participant_id" => $part_id,
-                    "test_upc" => $test_upc
+                    "participant"       => "hhd",
+                    "participant_id"    => $part_id,
+                    "test_upc"          => $test_upc
                 ));
             }
         }
+        $this->emDebug("All head of householdl in main project without a submission linked id", count($hh_id), count($no_match_mp) );
 
         //dep 1 id but no linking submission id
         $params	= array(
             'return_format' => 'json',
 			'fields'        => array("record_id","kit_household_code", "dep_1_participant_id", "dep_1_record_id", "dep_1_test_upc"),
-            'filterLogic'   => "[kit_household_code] <> '' AND ( ([dep_1_participant_id] <> '' AND [dep_1_record_id] = '' AND [dep_1_test_upc] <> '') )"
+            'filterLogic'   => "[kit_household_code] <> '' AND ( ([dep_1_participant_id] <> '' AND [dep_1_record_id] = '' ) )"
 		);
         $q 			= \REDCap::getData($params);
         $records 	= json_decode($q, true);
@@ -694,7 +695,6 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
             $rec_id     = $record["record_id"];
             $test_upc   = $record["dep_1_test_upc"];
 
-            array_push($household_ids, $record["kit_household_code"]);
             $dep_1_id[$part_id] = $rec_id;
 
             if(array_key_exists($part_id, $all_submission)){
@@ -711,7 +711,7 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
             }else{
                 // $this->emDebug("no matching kit submission , record_id for " . $rec_id);
                 $temp = array(
-                    "participant" => "dep_1_record_id",
+                    "participant" => "dep_1",
                     "participant_id" => $part_id,
                     "test_upc" => $test_upc
                 );
@@ -723,12 +723,13 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
                 }
             }
         }
+        $this->emDebug("All head of dep 1 in main project without a submission linked id", count($dep_1_id), count($no_match_mp) );
 
         //dep 2 id but no linking submission id
         $params	= array(
             'return_format' => 'json',
 			'fields'        => array("record_id","kit_household_code", "dep_2_participant_id", "dep_2_record_id", "dep_2_test_upc"),
-            'filterLogic'   => "[kit_household_code] <> '' AND ( ([dep_2_participant_id] <> '' AND [dep_2_record_id] = '') )"
+            'filterLogic'   => "[kit_household_code] <> '' AND ( ([dep_2_participant_id] <> '' AND [dep_2_record_id] = '' ) )"
 		);
         $q 			= \REDCap::getData($params);
         $records 	= json_decode($q, true);
@@ -737,7 +738,6 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
             $rec_id     = $record["record_id"];
             $test_upc   = $record["dep_2_test_upc"];
 
-            array_push($household_ids, $record["kit_household_code"]);
             $dep_2_id[$part_id] = $rec_id;
 
             if(array_key_exists($part_id, $all_submission)){
@@ -755,7 +755,7 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
                 // $this->emDebug("no matching kit submission , record_id for " . $rec_id);
                 
                 $temp = array(
-                    "participant" => "dep_2_record_id",
+                    "participant" => "dep_2",
                     "participant_id" => $part_id,
                     "test_upc" => $test_upc
                 );
@@ -767,6 +767,9 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
                 }
             }
         }
+        $this->emDebug("All head of dep 2 in main project without a submission linked id", count($dep_2_id), count($no_match_mp) );
+
+        $this->emDebug("found some matches", $save_data_mp);
         $r = \REDCap::saveData($this->main_project ,'json', json_encode($save_data_mp) );
         if(empty($r["errors"])){
             $this->emDebug("Main Project Linkage Made : " . count($save_data_mp) . " records saved");
