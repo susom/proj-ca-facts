@@ -606,7 +606,100 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
     }
 
     /**
-     * Once household_id is obtained, need to pregenerate records in kit_submission project
+     * generate per participant report 
+     * @return array of recordids created
+     */
+    public function householdPerParticipantReport(){
+        $params	= array(
+            "project_id"    => $this->access_code_project, 
+            'return_format' => 'json',
+			'fields'        => array(     "record_id", 
+                                          "access_code"
+                            ),
+            'filterLogic'   => ""
+		);
+        $q 	    = \REDCap::getData($params);
+        $acs    = json_decode($q, true);
+        $county_map = array();
+        foreach($acs as $ac){
+            $county_map[$ac["access_code"]] = $ac["record_id"];
+        }
+
+        //SEARCH kit submission, GET ALL Records and their linked/null main record id 
+        $params	= array(
+            "project_id"    => $this->main_project, 
+            'return_format' => 'json',
+			'fields'        => array(     "record_id", 
+                                          "access_code"
+                                        , "kit_household_code"
+                                        , "hhd_participant_id"
+                                        , "hhd_test_upc"
+                                        , "hhd_test_result"
+                                        , "hhd_sex"
+                                        , "hhd_age"
+                                        , "hhd_record_id" 
+                                        
+
+                                        , "dep_1_participant_id"
+                                        , "dep_1_test_upc"
+                                        , "dep_1_test_result"
+                                        , "dep_1_sex"
+                                        , "dep_1_age"
+                                        , "dep_1_record_id"
+                                        
+                                        , "dep_2_participant_id"
+                                        , "dep_2_test_upc"
+                                        , "dep_2_test_result"
+                                        , "dep_2_sex"
+                                        , "dep_2_age"
+                                        , "dep_2_record_id"
+
+                                        , "city"
+                                        , "census_tract"
+                                        
+                            ),
+            'filterLogic'   => ""
+		);
+        $q 		    = \REDCap::getData($params);
+        $records    = json_decode($q, true);
+
+        $data       = array();
+        foreach($records as $record){
+            $record_id          = $record["record_id"];
+            $kit_household_code = $record["kit_household_code"];
+            $access_code        = $record["access_code"];
+            $city               = $record["city"];
+            $census_tract       = $record["census_tract"];
+            $county             = $county_map[$access_code] < 10001 ? "Santa Clara" : "Placer";
+
+            foreach(array("hhd_participant_id", "dep_1_participant_id", "dep_2_participant_id") as $i => $part_id_var){
+                $part_id    = $record[$part_id_var];
+                $prefix     = "hhd";
+                $is_hhd     = true;
+                if($i > 0){
+                    $prefix = "dep_".$i;
+                    $is_hdd = false;
+                }
+                
+                if(!empty($part_id)){
+                    $part_ks    = $record[$prefix . "_record_id"];
+                    $part_upc   = $record[$prefix . "_test_upc"];
+                    $part_res   = $record[$prefix . "_test_result"];
+                    $part_age   = $record[$prefix . "_age"];
+                    $part_sex   = $record[$prefix . "_sex"];
+                    $temp = array($record_id, $access_code, $kit_household_code, $part_id, $prefix, $part_upc, $part_res, $part_ks, $part_sex, $part_age, $city, $census_tract, $county);
+                }
+
+                if(!empty($temp)){
+                    array_push($data, $temp);
+                }
+            }
+        }
+        return $data;
+    }
+
+    /**
+     * link submission surveys to main project records
      * @return array of recordids created
      */
     public function linkKits(){

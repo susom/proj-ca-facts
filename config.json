@@ -71,6 +71,11 @@
 	        "name": "CA-FACTS Reconcile Submission - Main",
 	        "icon": "gear",
 	        "url": "pages/reconcile_submissions.php"
+	      },
+		  {
+	        "name": "CA-FACTS Per Household Per Participant Records",
+	        "icon": "gear",
+	        "url": "pages/household_report.php"
 	      }
 		],
 		"control-center": [
