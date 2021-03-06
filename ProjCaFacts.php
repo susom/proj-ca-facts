@@ -42,7 +42,9 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
             , $access_code_record
             , $access_code_project
             , $kit_submission_record
-            , $kit_submission_project;
+            , $kit_submission_project
+            , $follow_up_record
+            , $follow_up_project;
 
     // This em is enabled on more than one project so you set the mode depending on the project
     static $MODE;  // access_code_db, kit_order, kit_submission
@@ -174,6 +176,10 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
 
                 case "kit_submission":
                     $this->kit_submission_project = $pid;
+                break;
+
+                case "follow_up":
+                    $this->follow_up_project = $pid;
                 break;
             }
         }
@@ -603,6 +609,82 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
         $results    = json_decode($q,true);
 
         return $results;
+    }
+
+    /**
+     * generate per participant report 
+     * @return array of recordids created
+     */
+    public function sendOneMonthFollowUps(){
+        // GET ALL SURVEYS THAT A FOLLOW UP HAS NOT BEEN SENT OUT
+        $params	= array(
+            "project_id"    => $this->kit_submission_project, 
+            'return_format' => 'json',
+			'fields'        => array(     "record_id", 
+                                          "household_id",
+                                          "participant_id",
+                                          "email", "email_s", "email_v", "email_m",
+                                          "txt","txt_s", "txt_v","txt_m",
+                                          "cafacts_surveys_timestamp"
+                            ),
+            'filterLogic'   => "[follow_up_sent] != 1"
+		);
+        $q 	        = \REDCap::getData($params);
+        $results    = json_decode($q, true);
+        $this->emDebug("get all surveys with no followup", count($results));
+        
+        //FIND ALL THAT ARE 30 days old (or more)
+        $save_to_follow_up  = array();
+        $map_fu_ks          = array();
+        $next_fu_id         = $this->getNextAvailableRecordId($this->follow_up_project);
+        $i = 0; 
+        foreach($results as $result){
+            $ks_record_id   = $result["record_id"];
+            $household_code = $result["household_id"];
+            $part_id        = $result["participant_id"];
+
+            //NEED TO FIGURE OUT HOW TO GET TIMESTAMP FOR COMPLETE 
+            // If [timestamp_complete] < 30 days , continue;
+
+            $map_fu_ks[$next_fu_id] = $ks_record_id;
+            $temp = array(
+                "record_id"         => $next_fu_id,
+                "household_id"      => $household_code,
+                "participant_id"    => $part_id
+            );
+            array_push($save_to_follow_up, $temp);
+            $next_fu_id++;
+            
+
+            // fake for now just do first 5
+            $i++;
+            if($i == 5){
+                break;
+            }
+        }
+
+        //SAVE TO FOLLOW UP PROJECT
+        $result = \REDCap::saveData($this->follow_up_project ,'json', json_encode($save_to_follow_up));
+        $this->emDebug("save to follow up project", $result, $save_to_follow_up);
+
+        //NOW GET THE SURVEY LINKS FOR EACH OF THE NEWLY ADDED FOLLOW UP RECORDS AND SAVE IT BACK TO THE KS project
+        $update_ks_fu = array();
+        if(empty($result["errors"])){
+            foreach($result["ids"] as $id){
+                $survey_link = \REDCap::getSurveyLink($id, $instrument='cafacts_followup_survey', $event_id='', $instance=1, $project_id=$this->follow_up_project);
+                
+                $ks_id  = $map_fu_ks[$id];
+                $temp   = array(
+                    "record_id"         => $ks_id,
+                    "follow_up_sent"    => 1,
+                    "follow_up_link"    => $survey_link
+                );
+                array_push($update_ks_fu, $temp);
+            }
+            $result = \REDCap::saveData($this->kit_submission_project ,'json', json_encode($update_ks_fu));
+            $this->emDebug("update kit submission project", $result, $update_ks_fu);
+        }
+        return array($update_ks_fu, $result);
     }
 
     /**
@@ -1645,6 +1727,32 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
         shuffle($uniques);
         return array_slice($uniques, 0, $quantity);
     }
+
+    // Project Crons
+	public function projectCron($urls){
+		$projects 	= $this->framework->getProjectsWithModuleEnabled();
+		
+		foreach($projects as $index => $project_id){
+			foreach($urls as $url){
+				$thisUrl 	= $url . "&pid=$project_id"; //project specific
+				$client 	= new \GuzzleHttp\Client();
+				$response 	= $client->request('GET', $thisUrl, array(\GuzzleHttp\RequestOptions::SYNCHRONOUS => true));
+				$this->emDebug("running cron for $url on project $project_id");
+			}
+		}
+	}
+
+	public function daily_month_followups(){
+		// This will run hourly. Check Server time (PST) if it is called between 7 and 8 am PST then run it
+		$server_hour = Date("H");
+		echo $server_hour;
+		if($server_hour > 7 && $server_hour < 8){
+			$urls 		= array(
+				$this->getUrl('cron/one_month_followup.php', true),
+			); //has to be page
+			$this->projectCron($urls);
+		}
+	}
 
 }
 ?>

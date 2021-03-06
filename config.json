@@ -25,7 +25,7 @@
 		"redcap_every_page_top"
 	],
 
-	"framework-version": 4,
+	"framework-version": 5,
 
 	"enable-every-page-hooks-on-system-pages": false,
 
@@ -115,6 +115,10 @@
                 {
                   "name" : "KIT SUBMISSION",
                   "value" : "kit_submission"
+                },
+                {
+                  "name" : "FOLLOW UP SURVEYS",
+                  "value" : "follow_up"
                 }
             ]
 		},
@@ -156,6 +160,15 @@
 		}
 	],
 
+	"crons": [
+		{
+			"cron_name": "cafacts_one_month_followup",
+			"cron_description": "Cron that runs everyday ~ 600-700 PST to push followup for kit-submission?",
+			"method": "daily_month_followups",
+			"cron_frequency": "3600",
+			"cron_max_run_time": "900"
+		}
+	],
 
 	"system-settings": [
 		{
