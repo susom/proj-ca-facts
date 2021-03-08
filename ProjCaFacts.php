@@ -77,11 +77,11 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
             break;
 
             case $this->kit_submission_project:
-                $hide_links = array(0,1,2,3,4, 5, 6);
+                $hide_links = array(0,1,2,3,4, 5, 6,7);
             break;
 
             default:
-                $hide_links = array(0, 1, 2,3, 5,6);
+                $hide_links = array(0, 1, 2,3, 5,6,7);
             break;
         }
 		?>
@@ -616,7 +616,13 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
      * @return array of recordids created
      */
     public function sendOneMonthFollowUps(){
+        // put the proper project ids into class vars
+        $this->getAllSupportProjects();
+        
+        $days_to_follow_up = 30; 
+
         // GET ALL SURVEYS THAT A FOLLOW UP HAS NOT BEEN SENT OUT
+        $filter_logic = "[follow_up_sent] != 1";
         $params	= array(
             "project_id"    => $this->kit_submission_project, 
             'return_format' => 'json',
@@ -625,9 +631,9 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
                                           "participant_id",
                                           "email", "email_s", "email_v", "email_m",
                                           "txt","txt_s", "txt_v","txt_m",
-                                          "cafacts_surveys_timestamp"
+                                          "ks_timestamp"
                             ),
-            'filterLogic'   => "[follow_up_sent] != 1"
+            'filterLogic'   => $filter_logic
 		);
         $q 	        = \REDCap::getData($params);
         $results    = json_decode($q, true);
@@ -637,35 +643,34 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
         $save_to_follow_up  = array();
         $map_fu_ks          = array();
         $next_fu_id         = $this->getNextAvailableRecordId($this->follow_up_project);
-        $i = 0; 
+        $i                  = 0; 
+        $now                = time(); 
+        
         foreach($results as $result){
             $ks_record_id   = $result["record_id"];
             $household_code = $result["household_id"];
             $part_id        = $result["participant_id"];
+            $ks_timestamp   = $result["ks_timestamp"];
 
-            //NEED TO FIGURE OUT HOW TO GET TIMESTAMP FOR COMPLETE 
-            // If [timestamp_complete] < 30 days , continue;
+            $check_date     = strtotime($ks_timestamp);
+            $datediff       = $now - $check_date;
+            $num_days       = floor($datediff / (60 * 60 * 24));
 
-            $map_fu_ks[$next_fu_id] = $ks_record_id;
-            $temp = array(
-                "record_id"         => $next_fu_id,
-                "household_id"      => $household_code,
-                "participant_id"    => $part_id
-            );
-            array_push($save_to_follow_up, $temp);
-            $next_fu_id++;
-            
-
-            // fake for now just do first 5
-            $i++;
-            if($i == 5){
-                break;
+            if($num_days >= $days_to_follow_up){ 
+                $map_fu_ks[$next_fu_id] = $ks_record_id;
+                $temp = array(
+                    "record_id"         => $next_fu_id,
+                    "household_id"      => $household_code,
+                    "participant_id"    => $part_id
+                );
+                array_push($save_to_follow_up, $temp);
+                $next_fu_id++;
             }
         }
 
         //SAVE TO FOLLOW UP PROJECT
         $result = \REDCap::saveData($this->follow_up_project ,'json', json_encode($save_to_follow_up));
-        $this->emDebug("save to follow up project", $result, $save_to_follow_up);
+        $this->emDebug("save to follow up project", count($save_to_follow_up));
 
         //NOW GET THE SURVEY LINKS FOR EACH OF THE NEWLY ADDED FOLLOW UP RECORDS AND SAVE IT BACK TO THE KS project
         $update_ks_fu = array();
