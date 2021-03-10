@@ -760,6 +760,7 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
             $county             = $county_map[$access_code] < 10001 ? "Santa Clara" : "Placer";
 
             foreach(array("hhd_participant_id", "dep_1_participant_id", "dep_2_participant_id") as $i => $part_id_var){
+                $temp       = array();
                 $part_id    = $record[$part_id_var];
                 $prefix     = "hhd";
                 $is_hhd     = true;
@@ -767,7 +768,7 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
                     $prefix = "dep_".$i;
                     $is_hdd = false;
                 }
-                
+      
                 if(!empty($part_id)){
                     $part_ks    = $record[$prefix . "_record_id"];
                     $part_upc   = $record[$prefix . "_test_upc"];
