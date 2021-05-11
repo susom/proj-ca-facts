@@ -33,50 +33,56 @@
 		"project": [
 			{
 	        "name": "CA-FACTS Invitation API Instructions",
-	        "icon": "gear",
+	        "icon": "fas fa-info",
 	        "url": "pages/instructions.php"
 		  },
 		  {
 	        "name": "CA-FACTS Pending Invites Report",
-	        "icon": "gear",
+	        "icon": "fas fa-flag",
 	        "url": "pages/pending_invites.php"
 		  },
 		  {
 	        "name": "CA-FACTS Test Kit / UPC Linkage",
-	        "icon": "gear",
+	        "icon": "fas fa-link",
 	        "url": "pages/link_kit_upc.php"
 	      },
 		  {
 	        "name": "CA-FACTS Bulk Upload Lab Results",
-	        "icon": "gear",
+	        "icon": "fas fa-poll-h",
 	        "url": "pages/upload_results.php"
 		  },
 		  {
 	        "name": "CA-FACTS Return Scan",
-	        "icon": "gear",
+	        "icon": "fas fa-barcode",
 	        "url": "pages/kit_return_scan.php"
 		  },
 		  {
 	        "name": "CA-FACTS Unique Acess Code Generator",
-	        "icon": "gear",
+	        "icon": "fas fa-laptop-code",
 	        "url": "pages/unique_ac.php"
 	      },
 		  {
 	        "name": "CA-FACTS Results Sent Check Off",
-	        "icon": "gear",
+	        "icon": "fas fa-check-square",
 	        "url": "pages/results_checkoff.php"
-		  }
-		  ,
+		  },
 		  {
 	        "name": "CA-FACTS Reconcile Submission - Main",
-	        "icon": "gear",
+	        "icon": "fas fa-arrows-alt-h",
 	        "url": "pages/reconcile_submissions.php"
 	      },
 		  {
 	        "name": "CA-FACTS Per Household Per Participant Records",
-	        "icon": "gear",
+	        "icon": "fas fa-table",
 	        "url": "pages/household_report.php"
+	      },
+		  {
+	        "name": "CA-FACTS Follow Up Survey Check",
+	        "icon": "fas fa-search",
+	        "url": "cron/one_month_followup.php",
+			"show-header-and-footer": true
 	      }
+
 		],
 		"control-center": [
 	      {
@@ -165,8 +171,8 @@
 			"cron_name": "cafacts_one_month_followup",
 			"cron_description": "Cron that runs everyday ~ 600-700 PST to push followup for kit-submission?",
 			"method": "daily_month_followups",
-			"cron_frequency": "3600",
-			"cron_max_run_time": "900"
+			"cron_hour": 6,
+			"cron_minute":30
 		}
 	],
 

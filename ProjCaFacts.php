@@ -70,18 +70,18 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
 		// THIS IS SO IMPORTANT FOR DOING THE DAGS
         // $_SESSION["username"] = \ExternalModules\ExternalModules::getUsername();
         
-        $proj_links = array("CA-FACTS Pending Invites Report", "CA-FACTS Bulk Upload Lab Results", "CA-FACTS Test Kit / UPC Linkage","CA-FACTS Return Scan","CA-FACTS Unique Acess Code Generator", "CA-FACTS Results Sent Check Off", "CA-FACTS Reconcile Submission - Main");
+        $proj_links = array("CA-FACTS Pending Invites Report", "CA-FACTS Bulk Upload Lab Results", "CA-FACTS Test Kit / UPC Linkage","CA-FACTS Return Scan","CA-FACTS Unique Acess Code Generator", "CA-FACTS Results Sent Check Off", "CA-FACTS Reconcile Submission - Main", "CA-FACTS Follow Up Survey Check");
         switch($project_id){
             case $this->main_project:
                 $hide_links = array(4);
             break;
 
             case $this->kit_submission_project:
-                $hide_links = array(0,1,2,3,4, 5, 6,7);
+                $hide_links = array(0,1,2,3,4, 5, 6,7,8);
             break;
 
             default:
-                $hide_links = array(0, 1, 2,3, 5,6,7);
+                $hide_links = array(0, 1, 2,3, 5,6,7,8);
             break;
         }
 		?>
@@ -92,7 +92,7 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
 
                 for(var i in hide_links){
                     var hide_text = proj_links[hide_links[i]];
-                    $("a:contains('"+hide_text+"')").remove();
+                    $("a:contains('"+hide_text+"')").parent().remove();
                 }
 
                 var move_this = $("a:contains('CA-FACTS Invitation API Instructions')").parent("div");
@@ -622,7 +622,7 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
         $days_to_follow_up = 30; 
 
         // GET ALL SURVEYS THAT A FOLLOW UP HAS NOT BEEN SENT OUT
-        $filter_logic = "[follow_up_sent] != 1";
+        $filter_logic = "[follow_up_link] = '' and [participant_id] <> '' and [household_id] <> ''";
         $params	= array(
             "project_id"    => $this->kit_submission_project, 
             'return_format' => 'json',
@@ -631,14 +631,14 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
                                           "participant_id",
                                           "email", "email_s", "email_v", "email_m",
                                           "txt","txt_s", "txt_v","txt_m",
-                                          "ks_timestamp"
+                                          "ks_timestamp","follow_up_link"
                             ),
             'filterLogic'   => $filter_logic
 		);
         $q 	        = \REDCap::getData($params);
         $results    = json_decode($q, true);
         $this->emDebug("get all surveys with no followup", count($results));
-        
+
         //FIND ALL THAT ARE 30 days old (or more)
         $save_to_follow_up  = array();
         $map_fu_ks          = array();
@@ -681,7 +681,6 @@ class ProjCaFacts extends \ExternalModules\AbstractExternalModule {
                 $ks_id  = $map_fu_ks[$id];
                 $temp   = array(
                     "record_id"         => $ks_id,
-                    "follow_up_sent"    => 1,
                     "follow_up_link"    => $survey_link
                 );
                 array_push($update_ks_fu, $temp);
